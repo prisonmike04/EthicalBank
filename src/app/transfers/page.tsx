@@ -180,7 +180,7 @@ export default function Transfers() {
                   <div>
                     <label className="block text-sm font-medium mb-2">Amount</label>
                     <div className="relative">
-                      <span className="absolute left-3 top-1/2 -translate-y-1/2 text-neutral-500">$</span>
+                      <span className="absolute left-3 top-1/2 -translate-y-1/2 text-neutral-500">₹</span>
                       <input
                         type="number"
                         placeholder="0.00"
@@ -215,7 +215,7 @@ export default function Transfers() {
                     <div className="bg-blue-50 dark:bg-blue-950 rounded-lg p-3">
                       <h4 className="font-medium text-blue-900 dark:text-blue-100 mb-1">Transfer Fee</h4>
                       <p className="text-sm text-blue-800 dark:text-blue-200">
-                        {transferType === 'wire' ? '$25.00 wire transfer fee' : 'No fee for ACH transfers'}
+                        {transferType === 'wire' ? '₹2,075 wire transfer fee' : 'No fee for ACH transfers'}
                       </p>
                     </div>
                   )}

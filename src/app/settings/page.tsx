@@ -326,10 +326,10 @@ export default function SettingsPage() {
               <div>
                 <label className="block text-sm font-medium mb-2">Currency</label>
                 <select className="w-full rounded-md border border-neutral-200 bg-white px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500 dark:border-neutral-700 dark:bg-neutral-800">
+                  <option>INR (₹)</option>
                   <option>USD ($)</option>
                   <option>EUR (€)</option>
                   <option>GBP (£)</option>
-                  <option>CAD (C$)</option>
                 </select>
               </div>
             </div>

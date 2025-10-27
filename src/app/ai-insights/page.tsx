@@ -334,7 +334,7 @@ export default function AIInsights() {
                 <div className="space-y-2 mb-4">
                   <div className="flex justify-between text-sm">
                     <span>Annual Fee:</span>
-                    <span className="font-medium">$95</span>
+                    <span className="font-medium">₹7,900</span>
                   </div>
                   <div className="flex justify-between text-sm">
                     <span>Sign-up Bonus:</span>

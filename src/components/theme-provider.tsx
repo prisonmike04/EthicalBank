@@ -24,21 +24,28 @@ const ThemeProviderContext = createContext<ThemeProviderState>(initialState)
 
 export function ThemeProvider({
   children,
-  defaultTheme = 'system',
+  defaultTheme = 'light',
   storageKey = 'ui-theme',
   ...props
 }: ThemeProviderProps) {
-  const [theme, setTheme] = useState<Theme>(defaultTheme)
+  const [theme, setTheme] = useState<Theme>(() => {
+    // Initialize with light mode as default
+    if (typeof window !== 'undefined') {
+      const storedTheme = localStorage.getItem(storageKey) as Theme
+      return storedTheme || defaultTheme
+    }
+    return defaultTheme
+  })
 
   useEffect(() => {
     // Only access localStorage on the client side
     if (typeof window !== 'undefined') {
       const storedTheme = localStorage.getItem(storageKey) as Theme
-      if (storedTheme) {
+      if (storedTheme && storedTheme !== theme) {
         setTheme(storedTheme)
       }
     }
-  }, [storageKey])
+  }, [storageKey, theme])
 
   useEffect(() => {
     if (typeof window === 'undefined') return

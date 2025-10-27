@@ -114,7 +114,7 @@ export default function Dashboard() {
                   <CheckCircle className="h-5 w-5 text-green-500" />
                   <div>
                     <p className="font-medium">Transaction approved</p>
-                    <p className="text-sm text-neutral-600 dark:text-neutral-400">Coffee purchase - $4.50</p>
+                    <p className="text-sm text-neutral-600 dark:text-neutral-400">Coffee purchase - ₹375</p>
                   </div>
                 </div>
                 <Button variant="ghost" size="sm">
@@ -128,7 +128,7 @@ export default function Dashboard() {
                   <AlertCircle className="h-5 w-5 text-yellow-500" />
                   <div>
                     <p className="font-medium">Transaction flagged</p>
-                    <p className="text-sm text-neutral-600 dark:text-neutral-400">Large purchase - $1,200</p>
+                    <p className="text-sm text-neutral-600 dark:text-neutral-400">Large purchase - ₹99,750</p>
                   </div>
                 </div>
                 <Button variant="ghost" size="sm">
