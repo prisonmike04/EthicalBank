@@ -218,13 +218,6 @@ This project is licensed under the MIT License - see the [LICENSE.md](LICENSE.md
 - **Lucide**: For the beautiful icon library
 - **Vercel**: For deployment and hosting solutions
 
-## 📞 Support
-
-For support and questions:
-- 📧 Email: support@ethicalbank.com
-- 💬 Live Chat: Available 24/7 in the app
-- 📞 Phone: 1-800-ETHICAL (1-800-384-4225)
-- 🌐 Documentation: [docs.ethicalbank.com](https://docs.ethicalbank.com)
 
 ---
 
