@@ -56,10 +56,9 @@ const AccountSchema = new Schema<IAccount>({
   timestamps: true
 })
 
-// Compound indexes for performance
+// Compound indexes for performance (removed duplicate accountNumber index)
 AccountSchema.index({ userId: 1, accountType: 1 })
 AccountSchema.index({ userId: 1, status: 1 })
-AccountSchema.index({ accountNumber: 1 }, { unique: true })
 AccountSchema.index({ createdAt: -1 })
 
 // Virtual for account display name

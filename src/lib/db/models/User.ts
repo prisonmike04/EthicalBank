@@ -97,8 +97,7 @@ const UserSchema = new Schema<IUser>({
   }
 })
 
-// Indexes for performance
-UserSchema.index({ email: 1 })
+// Indexes for performance (removed duplicate email index)
 UserSchema.index({ kycStatus: 1 })
 UserSchema.index({ isActive: 1 })
 UserSchema.index({ createdAt: -1 })
