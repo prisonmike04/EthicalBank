@@ -1,0 +1,10 @@
+[project]
+name = "backend"
+version = "0.1.0"
+description = "Backend for EthicalBank application - GHCI Hackathon 2025"
+readme = "README.md"
+requires-python = ">=3.11"
+dependencies = [
+    "lime>=0.2.0.1",
+    "shape>=0.1.1",
+]
