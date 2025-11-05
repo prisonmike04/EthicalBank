@@ -272,25 +272,25 @@ export default function Transactions() {
             {showRecommendations && (
               <CardContent className="space-y-4">
                 {recommendations.map((rec: any, idx: number) => (
-                  <div key={idx} className="border border-neutral-200 dark:border-neutral-700 rounded-lg p-4">
+                  <div key={idx} className="border border-neutral-200 dark:border-neutral-700 rounded-lg p-4 bg-neutral-50 dark:bg-neutral-800/50">
                     <div className="flex items-start justify-between mb-2">
                       <div className="flex items-center gap-2">
-                        <Lightbulb className="h-4 w-4 text-yellow-500" />
-                        <h4 className="font-medium">{rec.insight}</h4>
+                        <Lightbulb className="h-4 w-4 text-yellow-500 dark:text-yellow-400" />
+                        <h4 className="font-semibold text-neutral-900 dark:text-neutral-100">{rec.insight}</h4>
                         <Badge variant={rec.priority === 'high' ? 'destructive' : rec.priority === 'medium' ? 'warning' : 'secondary'}>
                           {rec.priority} priority
                         </Badge>
                       </div>
                       {rec.potentialSavings && (
-                        <div className="text-sm font-semibold text-green-600">
+                        <div className="text-sm font-semibold text-green-600 dark:text-green-400">
                           Save ₹{rec.potentialSavings.toFixed(2)}/year
                         </div>
                       )}
                     </div>
-                    <p className="text-sm text-neutral-600 dark:text-neutral-400 mb-2">
+                    <p className="text-sm text-neutral-700 dark:text-neutral-300 mb-2 leading-relaxed">
                       {rec.recommendation}
                     </p>
-                    <Badge variant="outline" className="text-xs">
+                    <Badge variant="outline" className="text-xs border-neutral-300 dark:border-neutral-600 text-neutral-700 dark:text-neutral-300">
                       Category: {rec.category}
                     </Badge>
                   </div>
@@ -355,67 +355,155 @@ export default function Transactions() {
                     const aiAnalysis = transaction.aiAnalysis || {}
                     const riskLevel = aiAnalysis.riskLevel || 'low'
                     const isFlagged = riskLevel === 'medium' || riskLevel === 'high'
+                    const fraudScore = aiAnalysis.fraudScore !== undefined ? Math.round(aiAnalysis.fraudScore * 100) : null
                     
                     return (
-                      <div key={transaction.id} className="flex items-center justify-between p-4 border border-neutral-200 dark:border-neutral-700 rounded-lg hover:bg-neutral-50 dark:hover:bg-neutral-800">
-                        <div className="flex items-center space-x-4 flex-1">
-                          <div className={`w-10 h-10 rounded-full flex items-center justify-center ${
-                            transaction.type === 'credit' ? 'bg-green-100 dark:bg-green-900' : 'bg-red-100 dark:bg-red-900'
-                          }`}>
-                            <CreditCard className="h-4 w-4" />
-                          </div>
-                          <div className="flex-1">
-                            <div className="flex items-center gap-2">
-                              <p className="font-medium">{transaction.description}</p>
-                              {isFlagged && (
-                                <Badge variant="warning" className="text-xs">AI Flagged</Badge>
-                              )}
-                              {transaction.type === 'credit' ? (
-                                <Badge variant="success" className="text-xs">Credit</Badge>
-                              ) : (
-                                <Badge variant="secondary" className="text-xs">Debit</Badge>
-                              )}
-                            </div>
-                            <div className="flex items-center gap-4 text-sm text-neutral-600 dark:text-neutral-400">
-                              <span>{transaction.merchantName || 'Unknown'}</span>
-                              <span>•</span>
-                              <span className="capitalize">{transaction.category || 'Other'}</span>
-                              <span>•</span>
-                              <span>{formatDateTime(new Date(transaction.createdAt))}</span>
-                              {aiAnalysis.fraudScore !== undefined && (
-                                <>
-                                  <span>•</span>
-                                  <span className="text-xs">Risk: {Math.round(aiAnalysis.fraudScore * 100)}%</span>
-                                </>
-                              )}
-                            </div>
-                            {aiAnalysis.explanation && (
-                              <div className="mt-2 text-xs text-neutral-500 italic">
-                                AI: {aiAnalysis.explanation}
-                              </div>
-                            )}
-                          </div>
-                        </div>
-                        <div className="flex items-center gap-4">
-                          <div className="text-right">
-                            <div className={`font-semibold ${
-                              transaction.type === 'credit' ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'
+                      <div 
+                        key={transaction.id} 
+                        className={`border rounded-lg overflow-hidden transition-all ${
+                          isFlagged 
+                            ? 'border-yellow-300 dark:border-yellow-700 bg-yellow-50/50 dark:bg-yellow-950/30' 
+                            : 'border-neutral-200 dark:border-neutral-700 bg-white dark:bg-neutral-900'
+                        } hover:shadow-md`}
+                      >
+                        {/* Main Transaction Row */}
+                        <div className="p-4 flex items-start justify-between gap-4">
+                          <div className="flex items-start gap-4 flex-1 min-w-0">
+                            {/* Icon */}
+                            <div className={`w-12 h-12 rounded-full flex items-center justify-center flex-shrink-0 ${
+                              transaction.type === 'credit' 
+                                ? 'bg-green-100 dark:bg-green-900/50' 
+                                : 'bg-red-100 dark:bg-red-900/50'
                             }`}>
-                              {transaction.type === 'credit' ? '+' : '-'}{formatCurrency(transaction.amount)}
+                              {transaction.type === 'credit' ? (
+                                <ArrowUpRight className={`h-5 w-5 ${
+                                  transaction.type === 'credit' ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'
+                                }`} />
+                              ) : (
+                                <ArrowDownRight className={`h-5 w-5 ${
+                                  transaction.type === 'credit' ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'
+                                }`} />
+                              )}
                             </div>
-                            {aiAnalysis.fraudScore !== undefined && (
-                              <div className="text-xs text-neutral-500">
-                                Risk: {Math.round(aiAnalysis.fraudScore * 100)}%
+                            
+                            {/* Transaction Details */}
+                            <div className="flex-1 min-w-0">
+                              <div className="flex items-start justify-between gap-2 mb-2">
+                                <div className="flex items-center gap-2 flex-wrap min-w-0">
+                                  <h3 className="font-semibold text-base text-neutral-900 dark:text-neutral-100 truncate">
+                                    {transaction.description}
+                                  </h3>
+                                  {isFlagged && (
+                                    <Badge variant="destructive" className="text-xs font-medium flex-shrink-0">
+                                      AI Flagged
+                                    </Badge>
+                                  )}
+                                  <Badge 
+                                    variant={transaction.type === 'credit' ? 'default' : 'secondary'} 
+                                    className="text-xs font-medium flex-shrink-0"
+                                  >
+                                    {transaction.type === 'credit' ? 'Credit' : 'Debit'}
+                                  </Badge>
+                                </div>
+                                
+                                {/* Amount */}
+                                <div className="flex items-center gap-2 flex-shrink-0">
+                                  <div className="text-right">
+                                    <div className={`text-lg font-bold ${
+                                      transaction.type === 'credit' 
+                                        ? 'text-green-600 dark:text-green-400' 
+                                        : 'text-red-600 dark:text-red-400'
+                                    }`}>
+                                      {transaction.type === 'credit' ? '+' : '-'}{formatCurrency(transaction.amount)}
+                                    </div>
+                                    {fraudScore !== null && (
+                                      <div className={`text-xs font-medium mt-0.5 ${
+                                        fraudScore >= 70 
+                                          ? 'text-red-600 dark:text-red-400' 
+                                          : fraudScore >= 40 
+                                          ? 'text-yellow-600 dark:text-yellow-400' 
+                                          : 'text-neutral-600 dark:text-neutral-400'
+                                      }`}>
+                                        Risk: {fraudScore}%
+                                      </div>
+                                    )}
+                                  </div>
+                                  <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    onClick={() => handleDeleteTransaction(transaction.id)}
+                                    className="text-neutral-500 hover:text-red-600 dark:text-neutral-400 dark:hover:text-red-400"
+                                  >
+                                    <Trash2 className="h-4 w-4" />
+                                  </Button>
+                                </div>
                               </div>
-                            )}
+                              
+                              {/* Metadata */}
+                              <div className="flex flex-wrap items-center gap-2 text-sm mb-3">
+                                <span className="text-neutral-700 dark:text-neutral-300 font-medium">
+                                  {transaction.merchantName || 'Unknown Merchant'}
+                                </span>
+                                <span className="text-neutral-500 dark:text-neutral-400">•</span>
+                                <Badge variant="outline" className="text-xs capitalize border-neutral-300 dark:border-neutral-600 text-neutral-700 dark:text-neutral-300">
+                                  {transaction.category || 'Other'}
+                                </Badge>
+                                <span className="text-neutral-500 dark:text-neutral-400">•</span>
+                                <span className="text-neutral-600 dark:text-neutral-400">
+                                  {formatDateTime(new Date(transaction.createdAt))}
+                                </span>
+                              </div>
+                              
+                              {/* AI Analysis Section */}
+                              {aiAnalysis.explanation && (
+                                <div className={`mt-3 p-3 rounded-lg border ${
+                                  isFlagged 
+                                    ? 'bg-red-50 dark:bg-red-950/20 border-red-200 dark:border-red-900/50' 
+                                    : 'bg-blue-50 dark:bg-blue-950/20 border-blue-200 dark:border-blue-900/50'
+                                }`}>
+                                  <div className="flex items-start gap-2">
+                                    <div className={`w-6 h-6 rounded-full flex items-center justify-center flex-shrink-0 mt-0.5 ${
+                                      isFlagged 
+                                        ? 'bg-red-100 dark:bg-red-900/50' 
+                                        : 'bg-blue-100 dark:bg-blue-900/50'
+                                    }`}>
+                                      <Brain className={`h-3.5 w-3.5 ${
+                                        isFlagged 
+                                          ? 'text-red-600 dark:text-red-400' 
+                                          : 'text-blue-600 dark:text-blue-400'
+                                      }`} />
+                                    </div>
+                                    <div className="flex-1 min-w-0">
+                                      <div className="flex items-center gap-2 mb-1">
+                                        <span className={`text-xs font-semibold ${
+                                          isFlagged 
+                                            ? 'text-red-700 dark:text-red-300' 
+                                            : 'text-blue-700 dark:text-blue-300'
+                                        }`}>
+                                          AI Analysis
+                                        </span>
+                                        {fraudScore !== null && (
+                                          <Badge 
+                                            variant={fraudScore >= 70 ? 'destructive' : fraudScore >= 40 ? 'warning' : 'secondary'}
+                                            className="text-xs"
+                                          >
+                                            {fraudScore}% Risk
+                                          </Badge>
+                                        )}
+                                      </div>
+                                      <p className={`text-sm leading-relaxed ${
+                                        isFlagged 
+                                          ? 'text-red-800 dark:text-red-200' 
+                                          : 'text-blue-800 dark:text-blue-200'
+                                      }`}>
+                                        {aiAnalysis.explanation}
+                                      </p>
+                                    </div>
+                                  </div>
+                                </div>
+                              )}
+                            </div>
                           </div>
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => handleDeleteTransaction(transaction.id)}
-                          >
-                            <Trash2 className="h-4 w-4" />
-                          </Button>
                         </div>
                       </div>
                     )
