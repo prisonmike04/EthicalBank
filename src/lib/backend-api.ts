@@ -56,9 +56,10 @@ class BackendAPIClient {
       method?: 'GET' | 'POST' | 'PUT' | 'DELETE'
       body?: any
       clerkUserId?: string
+      timeout?: number
     } = {}
   ): Promise<T> {
-    const { method = 'GET', body, clerkUserId } = options
+    const { method = 'GET', body, clerkUserId, timeout = 60000 } = options
     
     const headers = await this.getHeaders()
     if (clerkUserId) {
@@ -78,15 +79,34 @@ class BackendAPIClient {
     try {
       const url = `${this.baseURL}${endpoint}`
       if (typeof window !== 'undefined' && process.env.NODE_ENV === 'development') {
-        console.log(`🌐 ${method} ${url}`, { body, headers })
+        console.log(`🌐 ${method} ${url}`, { body: body ? JSON.stringify(body).substring(0, 200) : null, headers })
       }
       
-      const response = await fetch(url, config)
+      // Create abort controller for timeout
+      const controller = new AbortController()
+      const timeoutId = setTimeout(() => controller.abort(), timeout)
+      
+      const response = await fetch(url, {
+        ...config,
+        signal: controller.signal
+      })
+      
+      clearTimeout(timeoutId)
       
       if (!response.ok) {
-        const error = await response.json().catch(() => ({ message: response.statusText }))
-        console.error(`❌ ${method} ${url} failed:`, error)
-        throw new Error(error.message || `HTTP ${response.status}`)
+        const errorText = await response.text().catch(() => response.statusText)
+        let errorData
+        try {
+          errorData = JSON.parse(errorText)
+        } catch {
+          errorData = { message: errorText || response.statusText }
+        }
+        console.error(`❌ ${method} ${url} failed:`, {
+          status: response.status,
+          statusText: response.statusText,
+          error: errorData
+        })
+        throw new Error(errorData.message || errorData.detail || `HTTP ${response.status}: ${response.statusText}`)
       }
 
       const data = await response.json()
@@ -94,7 +114,11 @@ class BackendAPIClient {
         console.log(`✅ ${method} ${url} success`)
       }
       return data
-    } catch (error) {
+    } catch (error: any) {
+      if (error.name === 'AbortError') {
+        console.error(`❌ Request timeout after ${timeout}ms: ${this.baseURL}${endpoint}`)
+        throw new Error(`Request timeout: The server took too long to respond. Please try again.`)
+      }
       console.error(`❌ Backend API error [${method} ${this.baseURL}${endpoint}]:`, error)
       throw error
     }
@@ -130,6 +154,7 @@ class BackendAPIClient {
       method: 'POST',
       body: { query, context },
       clerkUserId,
+      timeout: 120000, // 2 minutes for AI responses
     })
   }
 

@@ -6,8 +6,8 @@ import { AIChatbot } from '@/components/AIChatbot'
 export default function AIChatPage() {
   return (
     <AppLayout>
-      <div className="space-y-6">
-        <div>
+      <div className="flex flex-col h-full space-y-6">
+        <div className="flex-shrink-0">
           <h1 className="text-3xl font-bold text-neutral-900 dark:text-neutral-100">
             AI Banking Assistant
           </h1>
@@ -15,7 +15,9 @@ export default function AIChatPage() {
             Ask me anything about your banking - loans, accounts, transactions, offers, and more!
           </p>
         </div>
-        <AIChatbot />
+        <div className="flex-1 min-h-0 overflow-hidden">
+          <AIChatbot />
+        </div>
       </div>
     </AppLayout>
   )

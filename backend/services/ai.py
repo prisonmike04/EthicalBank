@@ -232,38 +232,28 @@ async def call_openai_for_loan_eligibility(user_data: Dict, loan_amount: float, 
     Step 2: Call OpenAI with structured JSON output
     """
     prompt = f"""
-    You are a loan eligibility assessor for EthicalBank, a transparent AI banking platform.
+    Assess loan eligibility for EthicalBank. Keep response CONCISE.
     
     User Data:
     {json.dumps(user_data, indent=2, default=str)}
     
-    Loan Request:
-    - Amount: ₹{loan_amount:,.0f}
-    - Type: {loan_type}
+    Loan Request: ₹{loan_amount:,.0f} ({loan_type})
     
-    CRITICAL REQUIREMENTS:
-    1. Analyze the user data and make a decision (approved/denied/requires_review)
-    2. Provide confidence score (0-1)
-    3. Explain your decision in clear, natural language that a customer can understand
-    4. List ALL schema attributes you used in your analysis in 'attributes_used' array
-       Use format: user.income, accounts.balance, transactions.amount, savings_accounts.balance, savings_goals.monthlyContribution, etc.
-       Consider savings accounts and goals as they indicate financial stability and planning discipline.
-    5. Break down factors with weights and impacts
+    Requirements:
+    1. Decision: approved/denied/requires_review
+    2. Confidence: 0.0-1.0
+    3. Brief explanation (2-3 sentences max)
+    4. List attributes used: user.income, accounts.balance, etc.
+    5. Top 3-5 factors only
     
-    Return JSON with this exact structure:
+    Return JSON:
     {{
         "decision": "approved|denied|requires_review",
         "confidence": 0.0-1.0,
-        "explanation": "Clear explanation",
+        "explanation": "Brief 2-3 sentence explanation",
         "attributes_used": ["user.income", "user.creditScore", ...],
         "factors": [
-            {{
-                "name": "Credit Score",
-                "value": 750,
-                "weight": 0.3,
-                "impact": "positive",
-                "reason": "Excellent credit score"
-            }},
+            {{"name": "Factor 1", "value": 750, "weight": 0.3, "impact": "positive", "reason": "Brief reason"}},
             ...
         ]
     }}
@@ -279,11 +269,13 @@ async def call_openai_for_loan_eligibility(user_data: Dict, loan_amount: float, 
             messages=[
                 {
                     "role": "system",
-                    "content": "You are a transparent AI loan assessor. Always report which attributes you use."
+                    "content": "You are a transparent AI loan assessor. Always report which attributes you use. Keep responses concise."
                 },
                 {"role": "user", "content": prompt}
             ],
-            response_format={"type": "json_object"}
+            response_format={"type": "json_object"},
+            max_completion_tokens=1000,  # Limit for faster responses
+    
         )
         
         result = json.loads(response.choices[0].message.content)
@@ -295,10 +287,12 @@ async def call_openai_for_loan_eligibility(user_data: Dict, loan_amount: float, 
         response = client.chat.completions.create(
             model=settings.openai_model,
             messages=[
-                {"role": "system", "content": "You are a transparent AI loan assessor. Always report which attributes you use."},
+                {"role": "system", "content": "You are a transparent AI loan assessor. Always report which attributes you use. Keep responses concise."},
                 {"role": "user", "content": prompt}
             ],
-            response_format={"type": "json_object"}
+            response_format={"type": "json_object"},
+            max_completion_tokens=1000,
+
         )
         
         return json.loads(response.choices[0].message.content)
@@ -354,7 +348,32 @@ async def check_loan_eligibility(
     
     # Step 3: Validate attributes
     ai_reported = ai_response.get("attributes_used", [])
+    
+    # Clean up duplicate attributes
+    def clean_attribute(attr: str) -> str:
+        """Remove duplicate prefixes from attributes"""
+        while "savings_accounts.savings_accounts" in attr:
+            attr = attr.replace("savings_accounts.savings_accounts", "savings_accounts")
+        while "savings_goals.savings_goals" in attr:
+            attr = attr.replace("savings_goals.savings_goals", "savings_goals")
+        return attr.strip()
+    
+    ai_reported = [clean_attribute(attr) for attr in ai_reported if attr]
+    attributes_accessed = [clean_attribute(attr) for attr in attributes_accessed]
+    
     validated_attributes, validation_status = validate_attributes(ai_reported, attributes_accessed)
+    
+    # Final deduplication
+    final_seen = set()
+    final_cleaned = []
+    for attr in validated_attributes:
+        attr_clean = clean_attribute(attr)
+        attr_lower = attr_clean.lower()
+        if attr_lower not in final_seen:
+            final_cleaned.append(attr_clean)
+            final_seen.add(attr_lower)
+    
+    validated_attributes = sorted(final_cleaned)
     
     # Filter attributes based on user permissions
     final_attributes = filter_allowed_attributes(user_id, validated_attributes, db)
@@ -530,34 +549,35 @@ async def explain_profile(
         raise HTTPException(status_code=500, detail="OpenAI client not initialized")
     
     prompt = f"""
-    Analyze this user's banking profile and provide insights:
+    Analyze this user's banking profile and provide CONCISE insights (keep each section under 100 words):
     
     {json.dumps(user_profile, indent=2, default=str)}{aspects_text}
     
-    Provide:
-    1. A summary of their profile
-    2. AI insights about their financial behavior
-    3. Recommendations for improvement
+    Provide BRIEF:
+    1. Profile summary (2-3 sentences)
+    2. Key insights (1-2 sentences each)
+    3. Top 3-5 recommendations only
     
     Return JSON:
     {{
-        "profile_summary": "...",
+        "profile_summary": "Brief 2-3 sentence summary",
         "ai_insights": {{
-            "financial_health": "...",
-            "spending_patterns": "...",
-            "risk_assessment": "..."
+            "financial_health": "1-2 sentences",
+            "spending_patterns": "1-2 sentences",
+            "risk_assessment": "1-2 sentences"
         }},
-        "recommendations": ["...", "..."]
+        "recommendations": ["Brief rec 1", "Brief rec 2", "Brief rec 3"]
     }}
     """
     
     response = client.chat.completions.create(
         model=settings.openai_model,
         messages=[
-            {"role": "system", "content": "You are a transparent AI banking advisor."},
+            {"role": "system", "content": "You are a transparent AI banking advisor. Keep responses concise and focused."},
             {"role": "user", "content": prompt}
         ],
-        response_format={"type": "json_object"}
+        response_format={"type": "json_object"},
+        max_completion_tokens=1000,
     )
     
     ai_response = json.loads(response.choices[0].message.content)

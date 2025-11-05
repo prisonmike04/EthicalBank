@@ -125,11 +125,15 @@ def extract_accounts(user_id: ObjectId, db) -> tuple[Dict, List[str]]:
     
     accounts = list(db.accounts.find(
         {"userId": user_id, "status": {"$ne": "closed"}},
-        {"balance": 1, "accountType": 1, "accountNumber": 1, "status": 1}
+        {"balance": 1, "accountType": 1, "accountNumber": 1, "status": 1, "currency": 1}
     ))
     
     if not accounts:
         return {}, []
+    
+    # Get currency from accounts (default to INR if not specified)
+    currencies = [acc.get("currency", "INR") for acc in accounts if acc.get("currency")]
+    primary_currency = currencies[0] if currencies else "INR"
     
     data = {
         "accounts": [
@@ -137,19 +141,22 @@ def extract_accounts(user_id: ObjectId, db) -> tuple[Dict, List[str]]:
                 "type": acc.get("accountType"),
                 "balance": acc.get("balance"),
                 "accountNumber": acc.get("accountNumber"),
-                "status": acc.get("status")
+                "status": acc.get("status"),
+                "currency": acc.get("currency", primary_currency)
             }
             for acc in accounts
         ],
         "total_balance": sum(acc.get("balance", 0) for acc in accounts),
-        "account_count": len(accounts)
+        "account_count": len(accounts),
+        "currency": primary_currency
     }
     
     attributes = [
         "accounts.balance",
         "accounts.accountType",
         "accounts.accountNumber",
-        "accounts.status"
+        "accounts.status",
+        "accounts.currency"
     ]
     
     return data, attributes
@@ -168,7 +175,7 @@ def extract_transactions(user_id: ObjectId, db) -> tuple[Dict, List[str]]:
             "createdAt": {"$gte": six_months_ago},
             "status": "completed"
         },
-        {"amount": 1, "category": 1, "type": 1, "description": 1, "createdAt": 1}
+        {"amount": 1, "category": 1, "type": 1, "description": 1, "createdAt": 1, "currency": 1}
     ).limit(50))
     
     if not transactions:
@@ -176,6 +183,8 @@ def extract_transactions(user_id: ObjectId, db) -> tuple[Dict, List[str]]:
     
     categories = {}
     monthly_spending = 0
+    currencies = [t.get("currency", "INR") for t in transactions if t.get("currency")]
+    primary_currency = currencies[0] if currencies else "INR"
     
     for t in transactions:
         cat = t.get("category", "other")
@@ -188,7 +197,8 @@ def extract_transactions(user_id: ObjectId, db) -> tuple[Dict, List[str]]:
     data = {
         "recent_count": len(transactions),
         "monthly_spending": monthly_spending / 6,
-        "categories": categories
+        "categories": categories,
+        "currency": primary_currency
     }
     
     attributes = [
@@ -196,7 +206,8 @@ def extract_transactions(user_id: ObjectId, db) -> tuple[Dict, List[str]]:
         "transactions.category",
         "transactions.type",
         "transactions.description",
-        "transactions.createdAt"
+        "transactions.createdAt",
+        "transactions.currency"
     ]
     
     return data, attributes
@@ -419,15 +430,24 @@ async def chat_query(
     """
     start_time = time.time()
     
+    logger.info(f"Received chat query from user {x_clerk_user_id}: {request.query[:100]}...")
+    
     if not client:
+        logger.error("OpenAI client not initialized")
         raise HTTPException(status_code=500, detail="OpenAI client not initialized")
     
     # Get user
-    user = get_user_from_clerk_id(x_clerk_user_id, db)
-    user_id = user["_id"]
+    try:
+        user = get_user_from_clerk_id(x_clerk_user_id, db)
+        user_id = user["_id"]
+        logger.info(f"User found: {user_id}")
+    except Exception as e:
+        logger.error(f"Error getting user: {e}")
+        raise
     
     # Determine query type
     query_type = determine_query_type(request.query)
+    logger.info(f"Query type determined: {query_type}")
     
     # Step 1: Intelligently extract relevant data
     # Reset query logger before extracting data
@@ -448,14 +468,22 @@ async def chat_query(
         query_logger.reset()
     
     # Step 2: Build prompt for OpenAI
-    system_prompt = """You are a helpful and transparent AI banking assistant for EthicalBank.
-You must:
-1. Answer the user's question accurately and helpfully
-2. ALWAYS report which user/bank data attributes you used in your response
-3. Use the format: user.income, accounts.balance, transactions.amount, savings_accounts.balance, savings_goals.targetAmount, etc.
-4. Be transparent about what data influenced your answer
-5. If you're making recommendations, explain why based on the data
-6. Consider ALL available data sources including savings accounts and goals when relevant"""
+    # Extract currency from data if available
+    currency = "INR"  # default
+    if "accounts" in user_data and user_data["accounts"].get("currency"):
+        currency = user_data["accounts"]["currency"]
+    elif "transactions" in user_data and user_data["transactions"].get("currency"):
+        currency = user_data["transactions"]["currency"]
+    
+    system_prompt = """You are a concise and transparent AI banking assistant for EthicalBank.
+CRITICAL RULES:
+- Keep responses SHORT and DIRECT (under 300 words)
+- Answer only what's asked - no unnecessary explanations
+- Use markdown: **bold** for numbers, bullet points for lists
+- ALWAYS use the currency from the data (check accounts.currency or transactions.currency) - NEVER default to USD or $
+- Use proper currency symbols: ₹ for INR, $ for USD, € for EUR, etc.
+- ALWAYS report attributes used in the format: user.income, accounts.balance, transactions.amount, etc.
+- Be transparent but brief"""
     
     user_prompt = f"""
 User Query: {request.query}
@@ -463,58 +491,108 @@ User Query: {request.query}
 Available Data:
 {json.dumps(user_data, indent=2, default=str)}
 
-CRITICAL: In your response, you MUST include:
-1. A helpful answer to the user's question
-2. An 'attributes_used' array listing ALL schema attributes from the data that influenced your response
-   Format: ["user.income", "accounts.balance", "transactions.category", "savings_accounts.balance", "savings_goals.targetAmount", etc.]
-3. Consider savings accounts, savings goals, and all other available data when making recommendations
+INSTRUCTIONS:
+- Answer the question CONCISELY (max 300 words)
+- Focus on key insights only
+- Use markdown formatting
+- Use the currency from the data (currently: {currency}) - check accounts.currency or transactions.currency field
+- NEVER use $ or USD unless explicitly stated in the currency field
+- List ALL attributes used in 'attributes_used' array
 
 Return JSON:
 {{
-    "response": "Your helpful response to the user",
-    "attributes_used": ["user.income", "accounts.balance", "savings_accounts.balance", ...],
+    "response": "Your concise markdown response (under 300 words)",
+    "attributes_used": ["user.income", "accounts.balance", ...],
     "confidence": 0.0-1.0,
-    "reasoning": "Brief explanation of why you used these attributes"
+    "reasoning": "Brief explanation"
 }}
 """
     
     # Step 3: Call OpenAI
     try:
+        logger.info(f"Calling OpenAI API with model: {settings.openai_model}")
         response = client.chat.completions.create(
             model=settings.openai_model,
             messages=[
                 {"role": "system", "content": system_prompt},
                 {"role": "user", "content": user_prompt}
             ],
-            response_format={"type": "json_object"}
+            response_format={"type": "json_object"},
+            timeout=60.0,
+            max_completion_tokens=5000,  # Increased for reasoning models
         )
         
-        ai_response = json.loads(response.choices[0].message.content)
+        content = response.choices[0].message.content
+        if not content or content.strip() == "":
+            logger.error(f"Empty content. Finish reason: {response.choices[0].finish_reason}, Usage: {response.usage}")
+            raise HTTPException(status_code=500, detail="Empty response from AI service - try increasing max_completion_tokens")
+        
+        ai_response = json.loads(content)
+        logger.info(f"OpenAI API response received successfully")
     except Exception as e:
-        logger.error(f"OpenAI API error: {e}")
-        raise HTTPException(status_code=500, detail=f"AI service error: {str(e)}")
+        logger.error(f"OpenAI API error: {e}", exc_info=True)
+        error_message = str(e)
+        if "timeout" in error_message.lower():
+            raise HTTPException(status_code=504, detail=f"AI service timeout: The request took too long. Please try again.")
+        elif "invalid" in error_message.lower() or "model" in error_message.lower():
+            raise HTTPException(status_code=500, detail=f"AI model configuration error: {error_message}. Please check OPENAI_MODEL environment variable.")
+        else:
+            raise HTTPException(status_code=500, detail=f"AI service error: {error_message}")
     
     # Step 4: Validate and cross-reference attributes
     ai_reported = ai_response.get("attributes_used", [])
+    
+    # Clean up duplicate attributes (e.g., "savings_accounts.savings_accounts.balance")
+    def clean_attribute(attr: str) -> str:
+        """Remove duplicate prefixes from attributes"""
+        # Remove duplicate prefixes
+        while "savings_accounts.savings_accounts" in attr:
+            attr = attr.replace("savings_accounts.savings_accounts", "savings_accounts")
+        while "savings_goals.savings_goals" in attr:
+            attr = attr.replace("savings_goals.savings_goals", "savings_goals")
+        return attr.strip()
+    
+    ai_reported = [clean_attribute(attr) for attr in ai_reported if attr]
     
     # Validate attributes - check against known prefixes
     known_prefixes = ["user.", "accounts.", "transactions.", "savings_accounts.", "savings_goals.", "bank."]
     
     validated_attributes = []
+    seen_attributes = set()
+    
     for attr in ai_reported:
-        if attr in attributes_accessed:
-            validated_attributes.append(attr)
-        elif any(attr.startswith(prefix) for prefix in known_prefixes):
-            # Valid attribute format even if not in our accessed list
-            validated_attributes.append(attr)
+        attr = clean_attribute(attr)
+        attr_lower = attr.lower()
+        if attr_lower not in seen_attributes:
+            if attr in attributes_accessed:
+                validated_attributes.append(attr)
+                seen_attributes.add(attr_lower)
+            elif any(attr.startswith(prefix) for prefix in known_prefixes):
+                # Valid attribute format even if not in our accessed list
+                validated_attributes.append(attr)
+                seen_attributes.add(attr_lower)
     
     # Add any attributes we accessed but AI didn't report
     for attr in attributes_accessed:
-        if attr not in validated_attributes:
+        attr = clean_attribute(attr)
+        attr_lower = attr.lower()
+        if attr_lower not in seen_attributes:
             validated_attributes.append(attr)
+            seen_attributes.add(attr_lower)
     
     # Filter attributes based on user permissions
     final_attributes = filter_allowed_attributes(user_id, validated_attributes, db)
+    
+    # Final deduplication pass
+    final_seen = set()
+    final_cleaned = []
+    for attr in final_attributes:
+        attr_lower = clean_attribute(attr).lower()
+        if attr_lower not in final_seen:
+            final_cleaned.append(clean_attribute(attr))
+            final_seen.add(attr_lower)
+    
+    final_attributes = sorted(final_cleaned)
     
     processing_time = (time.time() - start_time) * 1000
     

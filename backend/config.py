@@ -8,7 +8,7 @@ class Settings(BaseSettings):
     openai_api_key: str = os.getenv("OPENAI_API_KEY", "")
     clerk_secret_key: Optional[str] = os.getenv("CLERK_SECRET_KEY")
     database_name: str = "ethicalbank"
-    openai_model: str = "gpt-4-turbo-preview"
+    openai_model: str = os.getenv("OPENAI_MODEL", "gpt-5-nano-2025-08-07")
     
     class Config:
         env_file = ".env"
