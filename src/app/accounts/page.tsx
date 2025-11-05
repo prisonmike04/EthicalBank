@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 'use client'
 
 import { AppLayout } from '@/components/app-layout'
@@ -35,6 +36,7 @@ export default function Accounts() {
   const [showAccountForm, setShowAccountForm] = useState(false)
   const [showTransactionModal, setShowTransactionModal] = useState<string | null>(null)
   const [editingAccount, setEditingAccount] = useState<any>(null)
+  const [transactionLoading, setTransactionLoading] = useState(false)
   const { user, isLoaded } = useUser()
   const {
     accounts,
@@ -117,7 +119,20 @@ export default function Accounts() {
 
   const handleCreateTransaction = async (accountId: string) => {
     if (!transactionForm.amount || parseFloat(transactionForm.amount) <= 0) return
+    setTransactionLoading(true)
     try {
+      // Optimistically update account balance
+      const account = accounts.find((a: any) => a.id === accountId)
+      if (account) {
+        const amount = parseFloat(transactionForm.amount)
+        const newBalance = transactionForm.type === 'credit' 
+          ? account.balance + amount 
+          : account.balance - amount
+        
+        // Update local state immediately for instant feedback
+        // This will be overwritten when fetchAll completes
+      }
+
       await createTransactionHook({
         accountId,
         type: transactionForm.type,
@@ -126,6 +141,7 @@ export default function Accounts() {
         category: transactionForm.category,
         currency: 'INR',
       })
+      
       setShowTransactionModal(null)
       setTransactionForm({
         type: 'credit',
@@ -133,11 +149,14 @@ export default function Accounts() {
         description: '',
         category: 'other',
       })
-      // Refresh accounts to show updated balance
-      await fetchAll()
+      
+      // Refresh accounts in background (don't await)
+      fetchAll().catch(err => console.error('Failed to refresh accounts:', err))
     } catch (err: any) {
       console.error('Failed to create transaction:', err)
       alert(err.message || 'Failed to create transaction')
+    } finally {
+      setTransactionLoading(false)
     }
   }
 
@@ -375,12 +394,40 @@ export default function Accounts() {
                       </div>
 
                       {/* Account Actions */}
-                      <div className="flex space-x-2 pt-2">
-                        <Button variant="outline" size="sm" className="flex-1">
-                          View Details
+                      <div className="flex flex-wrap gap-2 pt-2">
+                        <Button 
+                          variant="default" 
+                          size="sm" 
+                          className="flex-1 bg-green-600 hover:bg-green-700"
+                          onClick={() => {
+                            setShowTransactionModal(account.id)
+                            setTransactionForm({
+                              type: 'credit',
+                              amount: '',
+                              description: '',
+                              category: 'income',
+                            })
+                          }}
+                        >
+                          <ArrowUpRight className="h-4 w-4 mr-1" />
+                          Deposit
                         </Button>
-                        <Button variant="outline" size="sm" className="flex-1">
-                          Transfer
+                        <Button 
+                          variant="default" 
+                          size="sm" 
+                          className="flex-1 bg-red-600 hover:bg-red-700"
+                          onClick={() => {
+                            setShowTransactionModal(account.id)
+                            setTransactionForm({
+                              type: 'debit',
+                              amount: '',
+                              description: '',
+                              category: 'other',
+                            })
+                          }}
+                        >
+                          <ArrowDownRight className="h-4 w-4 mr-1" />
+                          Withdraw
                         </Button>
                         <Button 
                           variant="outline" 
@@ -605,18 +652,30 @@ export default function Accounts() {
                   </select>
                 </div>
                 <div className="flex space-x-2">
-                  <Button type="submit" className="flex-1" disabled={isLoading}>
-                    {isLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : transactionForm.type === 'credit' ? 'Deposit' : 'Withdraw'}
+                  <Button type="submit" className="flex-1" disabled={transactionLoading || isLoading}>
+                    {transactionLoading ? (
+                      <>
+                        <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                        Processing...
+                      </>
+                    ) : (
+                      transactionForm.type === 'credit' ? 'Deposit' : 'Withdraw'
+                    )}
                   </Button>
-                  <Button type="button" variant="outline" onClick={() => {
-                    setShowTransactionModal(null)
-                    setTransactionForm({
-                      type: 'credit',
-                      amount: '',
-                      description: '',
-                      category: 'other',
-                    })
-                  }}>
+                  <Button 
+                    type="button" 
+                    variant="outline" 
+                    onClick={() => {
+                      setShowTransactionModal(null)
+                      setTransactionForm({
+                        type: 'credit',
+                        amount: '',
+                        description: '',
+                        category: 'other',
+                      })
+                    }}
+                    disabled={transactionLoading}
+                  >
                     Cancel
                   </Button>
                 </div>

@@ -8,6 +8,8 @@ import { Input } from '@/components/ui/input'
 import { formatCurrency, formatDate } from '@/lib/utils'
 import { useSavings } from '@/hooks/useBackend'
 import { useSavingsRecommendations } from '@/hooks/useBackend'
+import { useTransactions } from '@/hooks/useBackend'
+import { useAccounts } from '@/hooks/useBackend'
 import { 
   PiggyBank,
   Target,
@@ -27,7 +29,8 @@ import {
   Calculator,
   Brain,
   Lightbulb,
-  Eye
+  Eye,
+  ArrowDownRight
 } from 'lucide-react'
 import { useState, useEffect } from 'react'
 
@@ -55,15 +58,25 @@ export default function Savings() {
     fetchRecommendations: fetchSavingsRecommendations,
   } = useSavingsRecommendations()
 
+  const { createTransaction: createTransactionHook } = useTransactions()
+  const { accounts: regularAccounts, fetchAll: fetchRegularAccounts } = useAccounts()
+
   const [showAccountForm, setShowAccountForm] = useState(false)
   const [showGoalForm, setShowGoalForm] = useState(false)
   const [showRecommendations, setShowRecommendations] = useState(false)
   const [editingAccount, setEditingAccount] = useState<any>(null)
   const [editingGoal, setEditingGoal] = useState<any>(null)
   const [showDepositModal, setShowDepositModal] = useState<string | null>(null)
+  const [showTransactionModal, setShowTransactionModal] = useState<string | null>(null)
   const [showContributeModal, setShowContributeModal] = useState<string | null>(null)
   const [depositAmount, setDepositAmount] = useState('')
   const [contributeAmount, setContributeAmount] = useState('')
+  const [transactionForm, setTransactionForm] = useState({
+    type: 'credit',
+    amount: '',
+    description: '',
+    category: 'other',
+  })
 
   // Form states
   const [accountForm, setAccountForm] = useState({
@@ -88,6 +101,10 @@ export default function Savings() {
   useEffect(() => {
     fetchAll()
   }, [fetchAll])
+
+  useEffect(() => {
+    fetchRegularAccounts()
+  }, [fetchRegularAccounts])
 
   const handleCreateAccount = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -160,6 +177,46 @@ export default function Savings() {
       setContributeAmount('')
     } catch (err) {
       console.error('Failed to contribute:', err)
+    }
+  }
+
+  const handleCreateTransaction = async (accountId: string) => {
+    if (!transactionForm.amount || parseFloat(transactionForm.amount) <= 0) return
+    try {
+      // Find the savings account to get the linked account ID
+      const savingsAccount = accounts.find((a: any) => a.id === accountId)
+      if (!savingsAccount) return
+
+      // Find the linked regular account
+      const linkedAccount = regularAccounts.find((a: any) => 
+        a.accountNumber === savingsAccount.accountNumber
+      )
+      
+      if (!linkedAccount) {
+        alert('Linked account not found. Please ensure the savings account is properly synchronized.')
+        return
+      }
+
+      await createTransactionHook({
+        accountId: linkedAccount.id,
+        type: transactionForm.type,
+        amount: parseFloat(transactionForm.amount),
+        description: transactionForm.description || `${transactionForm.type === 'credit' ? 'Deposit' : 'Withdrawal'} to ${savingsAccount.name}`,
+        category: transactionForm.category,
+        currency: 'INR',
+      })
+      setShowTransactionModal(null)
+      setTransactionForm({
+        type: 'credit',
+        amount: '',
+        description: '',
+        category: 'other',
+      })
+      // Refresh to show updated balance
+      await fetchAll()
+    } catch (err: any) {
+      console.error('Failed to create transaction:', err)
+      alert(err.message || 'Failed to create transaction')
     }
   }
 
@@ -343,13 +400,29 @@ export default function Savings() {
                     
                     <div className="mt-4 flex space-x-2">
                       <Button 
-                        variant="outline" 
+                        variant="default" 
                         size="sm" 
-                        className="flex-1"
+                        className="flex-1 bg-green-600 hover:bg-green-700"
                         onClick={() => setShowDepositModal(account.id)}
                       >
                         <ArrowUpRight className="h-3 w-3 mr-1" />
-                        Deposit
+                        Quick Deposit
+                      </Button>
+                      <Button 
+                        variant="outline" 
+                        size="sm"
+                        onClick={() => {
+                          setShowTransactionModal(account.id)
+                          setTransactionForm({
+                            type: 'credit',
+                            amount: '',
+                            description: '',
+                            category: 'other',
+                          })
+                        }}
+                      >
+                        <Plus className="h-3 w-3 mr-1" />
+                        Add Transaction
                       </Button>
                       <Button 
                         variant="outline" 
@@ -939,6 +1012,113 @@ export default function Savings() {
                   </Button>
                 </div>
               </div>
+            </CardContent>
+          </Card>
+        </div>
+      )}
+
+      {/* Transaction Modal */}
+      {showTransactionModal && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <Card className="w-full max-w-md">
+            <CardHeader>
+              <div className="flex items-center justify-between">
+                <CardTitle>
+                  {transactionForm.type === 'credit' ? 'Add Money' : 'Withdraw Money'}
+                </CardTitle>
+                <Button variant="ghost" size="sm" onClick={() => {
+                  setShowTransactionModal(null)
+                  setTransactionForm({
+                    type: 'credit',
+                    amount: '',
+                    description: '',
+                    category: 'other',
+                  })
+                }}>
+                  <X className="h-4 w-4" />
+                </Button>
+              </div>
+            </CardHeader>
+            <CardContent>
+              <form onSubmit={(e) => {
+                e.preventDefault()
+                handleCreateTransaction(showTransactionModal)
+              }} className="space-y-4">
+                <div>
+                  <label className="block text-sm font-medium mb-2">Savings Account</label>
+                  <div className="p-3 border border-neutral-200 dark:border-neutral-700 rounded-md bg-neutral-50 dark:bg-neutral-800">
+                    <p className="font-medium text-neutral-900 dark:text-neutral-100">
+                      {accounts.find((a: any) => a.id === showTransactionModal)?.name}
+                    </p>
+                    <p className="text-xs text-neutral-500">
+                      ...{accounts.find((a: any) => a.id === showTransactionModal)?.accountNumber}
+                    </p>
+                  </div>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium mb-2">Amount</label>
+                  <Input
+                    type="number"
+                    step="0.01"
+                    value={transactionForm.amount}
+                    onChange={(e) => setTransactionForm({...transactionForm, amount: e.target.value})}
+                    required
+                    placeholder="0.00"
+                    className="text-lg"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium mb-2">Description</label>
+                  <Input
+                    value={transactionForm.description}
+                    onChange={(e) => setTransactionForm({...transactionForm, description: e.target.value})}
+                    required
+                    placeholder={transactionForm.type === 'credit' ? 'e.g., Monthly savings deposit' : 'e.g., Withdrawal for emergency'}
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium mb-2">Category</label>
+                  <select
+                    value={transactionForm.category}
+                    onChange={(e) => setTransactionForm({...transactionForm, category: e.target.value})}
+                    className="flex h-10 w-full rounded-md border border-neutral-200 bg-white px-3 py-2 text-sm dark:border-neutral-800 dark:bg-neutral-950"
+                    required
+                  >
+                    {transactionForm.type === 'credit' ? (
+                      <>
+                        <option value="income">Income</option>
+                        <option value="salary">Salary</option>
+                        <option value="business">Business</option>
+                        <option value="other">Other</option>
+                      </>
+                    ) : (
+                      <>
+                        <option value="food">Food & Dining</option>
+                        <option value="transport">Transportation</option>
+                        <option value="shopping">Shopping</option>
+                        <option value="bills">Bills & Utilities</option>
+                        <option value="other">Other</option>
+                      </>
+                    )}
+                  </select>
+                </div>
+                <div className="flex space-x-2">
+                  <Button type="submit" className="flex-1" disabled={isLoading}>
+                    {isLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : transactionForm.type === 'credit' ? 'Add Money' : 'Withdraw'}
+                  </Button>
+                  <Button type="button" variant="outline" onClick={() => {
+                    setShowTransactionModal(null)
+                    setTransactionForm({
+                      type: 'credit',
+                      amount: '',
+                      description: '',
+                      category: 'other',
+                    })
+                  }}>
+                    Cancel
+                  </Button>
+                </div>
+              </form>
             </CardContent>
           </Card>
         </div>
