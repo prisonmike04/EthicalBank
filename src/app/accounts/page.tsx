@@ -7,6 +7,7 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { formatCurrency } from '@/lib/utils'
 import { useAccounts } from '@/hooks/useBackend'
+import { useTransactions } from '@/hooks/useBackend'
 import { useUser } from '@clerk/nextjs'
 import { 
   CreditCard, 
@@ -32,6 +33,7 @@ import { useState, useEffect } from 'react'
 export default function Accounts() {
   const [showBalances, setShowBalances] = useState(true)
   const [showAccountForm, setShowAccountForm] = useState(false)
+  const [showTransactionModal, setShowTransactionModal] = useState<string | null>(null)
   const [editingAccount, setEditingAccount] = useState<any>(null)
   const { user, isLoaded } = useUser()
   const {
@@ -44,11 +46,19 @@ export default function Accounts() {
     updateAccount,
     deleteAccount,
   } = useAccounts()
+  const { createTransaction: createTransactionHook } = useTransactions()
 
   const [accountForm, setAccountForm] = useState({
     accountType: 'checking',
     name: '',
     currency: 'INR',
+  })
+
+  const [transactionForm, setTransactionForm] = useState({
+    type: 'credit',
+    amount: '',
+    description: '',
+    category: 'other',
   })
 
   useEffect(() => {
@@ -102,6 +112,32 @@ export default function Accounts() {
         console.error('Failed to delete account:', err)
         alert('Cannot close account with non-zero balance. Please transfer funds first.')
       }
+    }
+  }
+
+  const handleCreateTransaction = async (accountId: string) => {
+    if (!transactionForm.amount || parseFloat(transactionForm.amount) <= 0) return
+    try {
+      await createTransactionHook({
+        accountId,
+        type: transactionForm.type,
+        amount: parseFloat(transactionForm.amount),
+        description: transactionForm.description || `${transactionForm.type === 'credit' ? 'Deposit' : 'Withdrawal'} transaction`,
+        category: transactionForm.category,
+        currency: 'INR',
+      })
+      setShowTransactionModal(null)
+      setTransactionForm({
+        type: 'credit',
+        amount: '',
+        description: '',
+        category: 'other',
+      })
+      // Refresh accounts to show updated balance
+      await fetchAll()
+    } catch (err: any) {
+      console.error('Failed to create transaction:', err)
+      alert(err.message || 'Failed to create transaction')
     }
   }
 
@@ -479,6 +515,116 @@ export default function Accounts() {
           </CardContent>
         </Card>
       </div>
+
+      {/* Transaction Modal */}
+      {showTransactionModal && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <Card className="w-full max-w-md">
+            <CardHeader>
+              <div className="flex items-center justify-between">
+                <CardTitle>
+                  {transactionForm.type === 'credit' ? 'Deposit Money' : 'Withdraw Money'}
+                </CardTitle>
+                <Button variant="ghost" size="sm" onClick={() => {
+                  setShowTransactionModal(null)
+                  setTransactionForm({
+                    type: 'credit',
+                    amount: '',
+                    description: '',
+                    category: 'other',
+                  })
+                }}>
+                  <X className="h-4 w-4" />
+                </Button>
+              </div>
+            </CardHeader>
+            <CardContent>
+              <form onSubmit={(e) => {
+                e.preventDefault()
+                handleCreateTransaction(showTransactionModal)
+              }} className="space-y-4">
+                <div>
+                  <label className="block text-sm font-medium mb-2">Account</label>
+                  <div className="p-3 border border-neutral-200 dark:border-neutral-700 rounded-md bg-neutral-50 dark:bg-neutral-800">
+                    <p className="font-medium text-neutral-900 dark:text-neutral-100">
+                      {accounts.find((a: any) => a.id === showTransactionModal)?.name || 
+                       `${accounts.find((a: any) => a.id === showTransactionModal)?.accountType} Account`}
+                    </p>
+                    <p className="text-xs text-neutral-500">
+                      ...{accounts.find((a: any) => a.id === showTransactionModal)?.accountNumber.slice(-4)}
+                    </p>
+                  </div>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium mb-2">Amount</label>
+                  <Input
+                    type="number"
+                    step="0.01"
+                    value={transactionForm.amount}
+                    onChange={(e) => setTransactionForm({...transactionForm, amount: e.target.value})}
+                    required
+                    placeholder="0.00"
+                    className="text-lg"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium mb-2">Description</label>
+                  <Input
+                    value={transactionForm.description}
+                    onChange={(e) => setTransactionForm({...transactionForm, description: e.target.value})}
+                    required
+                    placeholder={transactionForm.type === 'credit' ? 'e.g., Salary deposit' : 'e.g., ATM withdrawal'}
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium mb-2">Category</label>
+                  <select
+                    value={transactionForm.category}
+                    onChange={(e) => setTransactionForm({...transactionForm, category: e.target.value})}
+                    className="flex h-10 w-full rounded-md border border-neutral-200 bg-white px-3 py-2 text-sm dark:border-neutral-800 dark:bg-neutral-950"
+                    required
+                  >
+                    {transactionForm.type === 'credit' ? (
+                      <>
+                        <option value="income">Income</option>
+                        <option value="salary">Salary</option>
+                        <option value="business">Business</option>
+                        <option value="rental">Rental Income</option>
+                        <option value="other">Other</option>
+                      </>
+                    ) : (
+                      <>
+                        <option value="food">Food & Dining</option>
+                        <option value="transport">Transportation</option>
+                        <option value="shopping">Shopping</option>
+                        <option value="bills">Bills & Utilities</option>
+                        <option value="entertainment">Entertainment</option>
+                        <option value="other">Other</option>
+                      </>
+                    )}
+                  </select>
+                </div>
+                <div className="flex space-x-2">
+                  <Button type="submit" className="flex-1" disabled={isLoading}>
+                    {isLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : transactionForm.type === 'credit' ? 'Deposit' : 'Withdraw'}
+                  </Button>
+                  <Button type="button" variant="outline" onClick={() => {
+                    setShowTransactionModal(null)
+                    setTransactionForm({
+                      type: 'credit',
+                      amount: '',
+                      description: '',
+                      category: 'other',
+                    })
+                  }}>
+                    Cancel
+                  </Button>
+                </div>
+              </form>
+            </CardContent>
+          </Card>
+        </div>
+      )}
 
       {/* Account Form Modal */}
       {showAccountForm && (
