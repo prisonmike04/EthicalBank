@@ -1,12 +1,22 @@
 'use client'
 
-import { Bell, Search } from 'lucide-react'
+import { Bell, Search, Loader2 } from 'lucide-react'
 import { ThemeToggle } from './theme-toggle'
 import { UserButton } from '@clerk/nextjs'
+import { useLoading } from '@/contexts/LoadingContext'
 
 export function Header() {
+  const { isLoading } = useLoading()
+
   return (
-    <header className="h-16 bg-white dark:bg-neutral-900 border-b border-neutral-200 dark:border-neutral-800">
+    <header className="h-16 bg-white dark:bg-neutral-900 border-b border-neutral-200 dark:border-neutral-800 relative">
+      {/* Loading Bar */}
+      {isLoading && (
+        <div className="absolute top-0 left-0 right-0 h-1 bg-blue-200 dark:bg-blue-900 overflow-hidden">
+          <div className="h-full bg-blue-600 dark:bg-blue-500 animate-pulse" style={{ width: '100%' }} />
+        </div>
+      )}
+      
       <div className="flex h-full items-center justify-between px-6">
         {/* Search Bar */}
         <div className="flex-1 max-w-md">
@@ -16,7 +26,13 @@ export function Header() {
               type="text"
               placeholder="Search transactions, accounts, or help..."
               className="w-full rounded-md border border-neutral-200 bg-white pl-10 pr-4 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500 dark:border-neutral-700 dark:bg-neutral-800 dark:text-neutral-100 dark:placeholder-neutral-400"
+              disabled={isLoading}
             />
+            {isLoading && (
+              <div className="absolute right-3 top-1/2 -translate-y-1/2">
+                <Loader2 className="h-4 w-4 animate-spin text-blue-500" />
+              </div>
+            )}
           </div>
         </div>
 

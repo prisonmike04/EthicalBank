@@ -3,22 +3,19 @@
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { cn } from '@/lib/utils'
+import { useLoading } from '@/contexts/LoadingContext'
 import { 
   Home, 
   CreditCard, 
   PiggyBank, 
-  Send, 
-  Calendar, 
-  Bell, 
   MessageCircle, 
   Shield, 
   Brain, 
-  Eye, 
   Settings,
   FileText,
   BarChart3,
-  AlertTriangle,
-  Bot
+  Bot,
+  Loader2
 } from 'lucide-react'
 
 const navigation = [
@@ -116,6 +113,7 @@ const navigation = [
 
 export function Sidebar() {
   const pathname = usePathname()
+  const { isLoading } = useLoading()
 
   return (
     <div className="flex h-full w-64 flex-col bg-white dark:bg-neutral-900 border-r border-neutral-200 dark:border-neutral-800">
@@ -131,6 +129,16 @@ export function Sidebar() {
         </div>
       </div>
 
+      {/* Loading Indicator */}
+      {isLoading && (
+        <div className="px-6 py-2 border-b border-neutral-200 dark:border-neutral-800 bg-blue-50 dark:bg-blue-950/20">
+          <div className="flex items-center gap-2 text-sm text-blue-600 dark:text-blue-400">
+            <Loader2 className="h-4 w-4 animate-spin" />
+            <span className="font-medium">Loading page...</span>
+          </div>
+        </div>
+      )}
+
       {/* Navigation */}
       <nav className="flex-1 space-y-1 px-3 py-4 overflow-y-auto">
         {navigation.map((item) => {
@@ -143,7 +151,8 @@ export function Sidebar() {
                 'group flex items-center px-3 py-2 text-sm font-medium rounded-md transition-colors',
                 isActive
                   ? 'bg-blue-50 text-blue-700 dark:bg-blue-950 dark:text-blue-300'
-                  : 'text-neutral-600 hover:bg-neutral-50 hover:text-neutral-900 dark:text-neutral-400 dark:hover:bg-neutral-800 dark:hover:text-neutral-100'
+                  : 'text-neutral-600 hover:bg-neutral-50 hover:text-neutral-900 dark:text-neutral-400 dark:hover:bg-neutral-800 dark:hover:text-neutral-100',
+                isLoading && isActive && 'opacity-75'
               )}
             >
               <item.icon
@@ -151,10 +160,14 @@ export function Sidebar() {
                   'mr-3 h-5 w-5 flex-shrink-0',
                   isActive
                     ? 'text-blue-500 dark:text-blue-400'
-                    : 'text-neutral-400 group-hover:text-neutral-500 dark:text-neutral-500 dark:group-hover:text-neutral-400'
+                    : 'text-neutral-400 group-hover:text-neutral-500 dark:text-neutral-500 dark:group-hover:text-neutral-400',
+                  isLoading && pathname === item.href && 'animate-pulse'
                 )}
               />
               {item.name}
+              {isLoading && pathname === item.href && (
+                <Loader2 className="ml-auto h-4 w-4 animate-spin text-blue-500" />
+              )}
             </Link>
           )
         })}
