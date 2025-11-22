@@ -99,7 +99,7 @@ export default function SettingsPage() {
     <AppLayout>
       <div className="space-y-6 max-w-4xl">
         <div>
-          <h1 className="text-3xl font-bold">Profile Settings</h1>
+          <h1 className="text-3xl font-bold text-neutral-900 dark:text-neutral-100">Profile Settings</h1>
           <p className="text-neutral-600 dark:text-neutral-400 mt-2">
             Complete your profile to access all EthicalBank features
           </p>
@@ -128,7 +128,7 @@ export default function SettingsPage() {
                 </div>
                 {completionStatus.missingFields.length > 0 && (
                   <div className="text-sm text-neutral-600 dark:text-neutral-400">
-                    <p className="font-semibold mb-1">Missing fields:</p>
+                    <p className="font-semibold mb-1 text-neutral-900 dark:text-neutral-100">Missing fields:</p>
                     <ul className="list-disc list-inside space-y-1">
                       {completionStatus.missingFields.map((field: string, idx: number) => (
                         <li key={idx}>{field}</li>

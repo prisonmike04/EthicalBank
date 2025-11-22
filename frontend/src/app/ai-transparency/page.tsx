@@ -39,7 +39,7 @@ export default function AITransparency() {
               <Brain className="h-4 w-4 text-neutral-500" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">247</div>
+              <div className="text-2xl font-bold text-black dark:text-white">247</div>
               <p className="text-xs text-neutral-600 dark:text-neutral-400">
                 In the last 30 days
               </p>

@@ -249,7 +249,7 @@ export default function Alerts() {
                 <div className="flex items-center space-x-3">
                   <Mail className="h-5 w-5 text-blue-600" />
                   <div>
-                    <h3 className="font-medium">Email Notifications</h3>
+                    <h3 className="font-medium text-neutral-900 dark:text-neutral-100">Email Notifications</h3>
                     <p className="text-sm text-neutral-600 dark:text-neutral-400">Receive alerts via email</p>
                   </div>
                 </div>
@@ -266,7 +266,7 @@ export default function Alerts() {
                 <div className="flex items-center space-x-3">
                   <Smartphone className="h-5 w-5 text-green-600" />
                   <div>
-                    <h3 className="font-medium">Push Notifications</h3>
+                    <h3 className="font-medium text-neutral-900 dark:text-neutral-100">Push Notifications</h3>
                     <p className="text-sm text-neutral-600 dark:text-neutral-400">Mobile app notifications</p>
                   </div>
                 </div>
@@ -283,7 +283,7 @@ export default function Alerts() {
                 <div className="flex items-center space-x-3">
                   <MessageSquare className="h-5 w-5 text-purple-600" />
                   <div>
-                    <h3 className="font-medium">SMS Alerts</h3>
+                    <h3 className="font-medium text-neutral-900 dark:text-neutral-100">SMS Alerts</h3>
                     <p className="text-sm text-neutral-600 dark:text-neutral-400">Text message notifications</p>
                   </div>
                 </div>
@@ -435,7 +435,7 @@ export default function Alerts() {
                 <div className="space-y-3">
                   <div className="flex justify-between items-center">
                     <span className="text-sm">Average response time</span>
-                    <span className="font-medium">2.3 hours</span>
+                    <span className="font-medium text-black dark:text-white">2.3 hours</span>
                   </div>
                   <div className="flex justify-between items-center">
                     <span className="text-sm">Critical alerts resolved</span>
@@ -443,7 +443,7 @@ export default function Alerts() {
                   </div>
                   <div className="flex justify-between items-center">
                     <span className="text-sm">Alerts auto-resolved</span>
-                    <span className="font-medium">23%</span>
+                    <span className="font-medium text-black dark:text-white">23%</span>
                   </div>
                 </div>
               </div>

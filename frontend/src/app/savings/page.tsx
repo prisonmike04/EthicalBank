@@ -662,7 +662,7 @@ export default function Savings() {
                                 </div>
                                 <div>
                                   <span className="text-neutral-600 dark:text-neutral-400">Min Balance</span>
-                                  <p className="font-semibold">{formatCurrency(rec.recommendedMinimumBalance)}</p>
+                                  <p className="font-semibold text-black dark:text-white">{formatCurrency(rec.recommendedMinimumBalance)}</p>
                                 </div>
                                 <div>
                                   <span className="text-neutral-600 dark:text-neutral-400">Est. Monthly Growth</span>

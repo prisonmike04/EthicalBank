@@ -348,15 +348,15 @@ export default function Transfers() {
           <CardContent>
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
               <div className="text-center">
-                <h3 className="font-semibold mb-2">Internal Transfers</h3>
+                <h3 className="font-semibold mb-2 text-neutral-900 dark:text-neutral-100">Internal Transfers</h3>
                 <div className="space-y-1 text-sm">
                   <div className="flex justify-between">
                     <span>Daily limit:</span>
-                    <span>{formatCurrency(50000)}</span>
+                    <span className="text-black dark:text-white">{formatCurrency(50000)}</span>
                   </div>
                   <div className="flex justify-between">
                     <span>Used today:</span>
-                    <span>{formatCurrency(500)}</span>
+                    <span className="text-black dark:text-white">{formatCurrency(500)}</span>
                   </div>
                   <div className="w-full bg-neutral-200 dark:bg-neutral-700 rounded-full h-2 mt-2">
                     <div className="bg-blue-500 h-2 rounded-full" style={{width: '1%'}}></div>
@@ -365,15 +365,15 @@ export default function Transfers() {
               </div>
 
               <div className="text-center">
-                <h3 className="font-semibold mb-2">ACH Transfers</h3>
+                <h3 className="font-semibold mb-2 text-neutral-900 dark:text-neutral-100">ACH Transfers</h3>
                 <div className="space-y-1 text-sm">
                   <div className="flex justify-between">
                     <span>Daily limit:</span>
-                    <span>{formatCurrency(10000)}</span>
+                    <span className="text-black dark:text-white">{formatCurrency(10000)}</span>
                   </div>
                   <div className="flex justify-between">
                     <span>Used today:</span>
-                    <span>{formatCurrency(250)}</span>
+                    <span className="text-black dark:text-white">{formatCurrency(250)}</span>
                   </div>
                   <div className="w-full bg-neutral-200 dark:bg-neutral-700 rounded-full h-2 mt-2">
                     <div className="bg-green-500 h-2 rounded-full" style={{width: '2.5%'}}></div>
@@ -382,15 +382,15 @@ export default function Transfers() {
               </div>
 
               <div className="text-center">
-                <h3 className="font-semibold mb-2">Wire Transfers</h3>
+                <h3 className="font-semibold mb-2 text-neutral-900 dark:text-neutral-100">Wire Transfers</h3>
                 <div className="space-y-1 text-sm">
                   <div className="flex justify-between">
                     <span>Daily limit:</span>
-                    <span>{formatCurrency(100000)}</span>
+                    <span className="text-black dark:text-white">{formatCurrency(100000)}</span>
                   </div>
                   <div className="flex justify-between">
                     <span>Used today:</span>
-                    <span>{formatCurrency(0)}</span>
+                    <span className="text-black dark:text-white">{formatCurrency(0)}</span>
                   </div>
                   <div className="w-full bg-neutral-200 dark:bg-neutral-700 rounded-full h-2 mt-2">
                     <div className="bg-neutral-300 dark:bg-neutral-600 h-2 rounded-full" style={{width: '0%'}}></div>

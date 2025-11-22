@@ -425,7 +425,7 @@ export default function Loans() {
                   <div className="flex items-center justify-between">
                     <div className="text-sm">
                       <span className="text-neutral-600 dark:text-neutral-400">Next Payment: </span>
-                      <span className="font-medium">{formatDate(loan.nextPaymentDate)}</span>
+                      <span className="font-medium text-black dark:text-white">{formatDate(loan.nextPaymentDate)}</span>
                     </div>
                     <div className="flex space-x-2">
                       <Button variant="outline" size="sm">
