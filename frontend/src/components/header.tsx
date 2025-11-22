@@ -39,15 +39,15 @@ export function Header() {
         {/* Right Section */}
         <div className="flex items-center space-x-4">
           {/* Notifications */}
-          <button className="relative rounded-md p-2 text-neutral-400 hover:bg-neutral-100 hover:text-neutral-500 dark:hover:bg-neutral-800 dark:hover:text-neutral-300">
+          {/* <button className="relative rounded-md p-2 text-neutral-400 hover:bg-neutral-100 hover:text-neutral-500 dark:hover:bg-neutral-800 dark:hover:text-neutral-300">
             <Bell className="h-5 w-5" />
             <span className="absolute -top-1 -right-1 h-4 w-4 rounded-full bg-red-500 text-xs text-white flex items-center justify-center">
               3
             </span>
-          </button>
+          </button> */}
 
           {/* Theme Toggle */}
-          <ThemeToggle />
+          {/* <ThemeToggle /> */}
 
           {/* Clerk UserButton */}
           <UserButton 
