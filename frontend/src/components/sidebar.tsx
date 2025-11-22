@@ -105,12 +105,12 @@ const navigation = [
   //   icon: Bell,
   //   description: 'Notification preferences'
   // },
-  {
-    name: 'Support',
-    href: '/support',
-    icon: MessageCircle,
-    description: 'Customer support and help'
-  },
+  // {
+  //   name: 'Support',
+  //   href: '/support',
+  //   icon: MessageCircle,
+  //   description: 'Customer support and help'
+  // },
   {
     name: 'Settings',
     href: '/settings',
