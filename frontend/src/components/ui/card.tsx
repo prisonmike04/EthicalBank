@@ -43,7 +43,7 @@ export function CardTitle({ className, children, ...props }: CardProps) {
 export function CardDescription({ className, children, ...props }: CardProps) {
   return (
     <p
-      className={cn('text-sm text-neutral-700 dark:text-neutral-300', className)}
+      className={cn('text-sm text-neutral-800 dark:text-neutral-200', className)}
       {...props}
     >
       {children}

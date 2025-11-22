@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 'use client'
 
 import { useState, useEffect } from 'react'
@@ -221,7 +222,7 @@ export default function AIInsights() {
                         />
                       </svg>
                       <div className="absolute inset-0 flex items-center justify-center">
-                        <span className={`text-2xl font-bold ${getHealthScoreColor(insights.healthScore.overall)}`}>
+                        <span className="text-2xl font-bold text-black dark:text-white">
                           {insights.healthScore.overall}
                         </span>
                       </div>
@@ -237,7 +238,7 @@ export default function AIInsights() {
                       <PiggyBank className="h-6 w-6 text-green-600" />
                     </div>
                     <h3 className="font-semibold text-neutral-900 dark:text-neutral-100">Savings Rate</h3>
-                    <p className="text-lg font-bold text-green-600">{insights.healthScore.savingsRate}%</p>
+                    <p className="text-lg font-bold text-black dark:text-white">{insights.healthScore.savingsRate}%</p>
                     <p className="text-xs text-neutral-600 dark:text-neutral-400">of income</p>
                   </div>
 
@@ -246,7 +247,7 @@ export default function AIInsights() {
                       <CreditCard className="h-6 w-6 text-blue-600" />
                     </div>
                     <h3 className="font-semibold text-neutral-900 dark:text-neutral-100">Credit Score</h3>
-                    <p className="text-lg font-bold text-blue-600">{insights.healthScore.creditScore}</p>
+                    <p className="text-lg font-bold text-black dark:text-white">{insights.healthScore.creditScore}</p>
                     <p className="text-xs text-neutral-600 dark:text-neutral-400">out of 850</p>
                   </div>
 
@@ -255,7 +256,7 @@ export default function AIInsights() {
                       <Shield className="h-6 w-6 text-yellow-600" />
                     </div>
                     <h3 className="font-semibold text-neutral-900 dark:text-neutral-100">Emergency Fund</h3>
-                    <p className="text-lg font-bold text-yellow-600">{insights.healthScore.emergencyFund} months</p>
+                    <p className="text-lg font-bold text-black dark:text-white">{insights.healthScore.emergencyFund} months</p>
                     <p className="text-xs text-neutral-600 dark:text-neutral-400">of expenses</p>
                   </div>
                 </div>
@@ -276,20 +277,20 @@ export default function AIInsights() {
               <CardContent>
                 <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                   <div>
-                    <p className="text-sm text-neutral-600 dark:text-neutral-700">Monthly Income</p>
-                    <p className="text-lg font-bold text-black">{formatCurrency(insights.profileSummary.monthlyIncome)}</p>
+                    <p className="text-sm text-neutral-600 dark:text-neutral-400">Monthly Income</p>
+                    <p className="text-lg font-bold text-black dark:text-white">{formatCurrency(insights.profileSummary.monthlyIncome)}</p>
                   </div>
                   <div>
                     <p className="text-sm text-neutral-600 dark:text-neutral-400">Monthly Spending</p>
-                    <p className="text-lg font-bold text-red-600">{formatCurrency(insights.profileSummary.monthlySpending)}</p>
+                    <p className="text-lg font-bold text-black dark:text-white">{formatCurrency(insights.profileSummary.monthlySpending)}</p>
                   </div>
                   <div>
                     <p className="text-sm text-neutral-600 dark:text-neutral-400">Total Savings</p>
-                    <p className="text-lg font-bold text-green-600">{formatCurrency(insights.profileSummary.totalSavings)}</p>
+                    <p className="text-lg font-bold text-black dark:text-white">{formatCurrency(insights.profileSummary.totalSavings)}</p>
                   </div>
                   <div>
                     <p className="text-sm text-neutral-600 dark:text-neutral-400">Active Goals</p>
-                    <p className="text-lg font-bold text-blue-600">{insights.profileSummary.activeGoals}</p>
+                    <p className="text-lg font-bold text-black dark:text-white">{insights.profileSummary.activeGoals}</p>
                   </div>
                 </div>
               </CardContent>

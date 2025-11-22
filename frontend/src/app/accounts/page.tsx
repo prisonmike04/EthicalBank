@@ -286,7 +286,7 @@ export default function Accounts() {
               <TrendingUp className="h-4 w-4 text-green-500" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">
+              <div className="text-2xl font-bold text-black dark:text-white">
                 {showBalances ? formatCurrency(totalAssets) : '****'}
               </div>
               <p className="text-xs text-green-600 dark:text-green-400">
@@ -302,7 +302,7 @@ export default function Accounts() {
               <TrendingDown className="h-4 w-4 text-red-500" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">
+              <div className="text-2xl font-bold text-black dark:text-white">
                 {showBalances ? formatCurrency(totalLiabilities) : '****'}
               </div>
               <p className="text-xs text-red-600 dark:text-red-400">
@@ -384,11 +384,11 @@ export default function Accounts() {
                       <div className="grid grid-cols-2 gap-4 text-sm">
                         <div>
                           <span className="text-neutral-600 dark:text-neutral-400">Account Type</span>
-                          <div className="font-medium capitalize">{account.accountType}</div>
+                          <div className="font-medium capitalize text-black dark:text-white">{account.accountType}</div>
                         </div>
                         <div>
                           <span className="text-neutral-600 dark:text-neutral-400">Created</span>
-                          <div className="font-medium">
+                          <div className="font-medium text-black dark:text-white">
                             {new Date(account.createdAt).toLocaleDateString()}
                           </div>
                         </div>
@@ -489,17 +489,24 @@ export default function Accounts() {
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               <Button 
                 variant="outline" 
-                className="h-20 flex-col"
+                className="h-20 flex-col text-neutral-900 dark:text-neutral-100 hover:text-neutral-900 dark:hover:text-neutral-100"
                 onClick={() => setShowAccountForm(true)}
               >
                 <Plus className="h-6 w-6 mb-2" />
                 Open New Account
               </Button>
-              <Button variant="outline" className="h-20 flex-col">
+              <Button 
+                variant="outline" 
+                className="h-20 flex-col text-neutral-900 dark:text-neutral-100 hover:text-neutral-900 dark:hover:text-neutral-100"
+              >
                 <CreditCard className="h-6 w-6 mb-2" />
                 Apply for Credit Card
               </Button>
-              <Button variant="outline" className="h-20 flex-col" onClick={() => window.location.href = '/savings'}>
+              <Button 
+                variant="outline" 
+                className="h-20 flex-col text-neutral-900 dark:text-neutral-100 hover:text-neutral-900 dark:hover:text-neutral-100" 
+                onClick={() => window.location.href = '/savings'}
+              >
                 <PiggyBank className="h-6 w-6 mb-2" />
                 Start Savings Goal
               </Button>

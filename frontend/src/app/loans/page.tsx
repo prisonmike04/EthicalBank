@@ -408,7 +408,7 @@ export default function Loans() {
                   <div className="bg-neutral-50 dark:bg-neutral-800 rounded-lg p-3 mb-4">
                     <div className="flex items-center justify-between mb-2">
                       <span className="text-sm text-neutral-600 dark:text-neutral-400">Loan Progress</span>
-                      <span className="text-sm font-medium">
+                      <span className="text-sm font-medium text-black dark:text-white">
                         {((loan.originalAmount - loan.currentBalance) / loan.originalAmount * 100).toFixed(1)}% paid off
                       </span>
                     </div>

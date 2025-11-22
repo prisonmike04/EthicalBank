@@ -54,9 +54,9 @@ body {
 @layer base {
   :root {
     --background: 0 0% 100%;
-    --foreground: 0 0% 3.9%;
+    --foreground: 0 0% 9%; /* Darker default - almost black for better readability */
     --card: 0 0% 100%;
-    --card-foreground: 0 0% 3.9%;
+    --card-foreground: 0 0% 9%; /* Darker card text */
     --popover: 0 0% 100%;
     --popover-foreground: 0 0% 3.9%;
     --primary: 0 0% 9%;
@@ -120,5 +120,33 @@ body {
   /* Ensure headings are dark by default */
   h1, h2, h3, h4, h5, h6 {
     @apply text-neutral-900 dark:text-neutral-100;
+  }
+  /* Ensure paragraphs and text are readable by default - but allow overrides */
+  p:not([class*="text-"]) {
+    @apply text-neutral-900 dark:text-neutral-100;
+  }
+  /* Ensure card content text is dark by default */
+  [class*="card"] p:not([class*="text-"]),
+  [class*="Card"] p:not([class*="text-"]) {
+    @apply text-neutral-900 dark:text-neutral-100;
+  }
+  /* Ensure important data values are dark/black for readability */
+  .text-data,
+  [data-value] {
+    @apply text-black dark:text-white !important;
+  }
+  /* Override overly light text colors for better readability in light mode */
+  .text-neutral-400:not(.keep-light),
+  .text-neutral-500:not(.keep-light) {
+    @apply text-neutral-700 dark:text-neutral-300;
+  }
+  /* Ensure CardContent children have proper text color if no explicit color */
+  [class*="CardContent"] > div:not([class*="text-neutral"]):not([class*="text-gray"]):not([class*="text-green"]):not([class*="text-red"]):not([class*="text-blue"]):not([class*="text-yellow"]):not([class*="text-"]) {
+    @apply text-neutral-900 dark:text-neutral-100;
+  }
+  /* Ensure large bold text (usually values/numbers) are dark */
+  .text-2xl.font-bold:not([class*="text-neutral"]):not([class*="text-gray"]):not([class*="text-green"]):not([class*="text-red"]):not([class*="text-blue"]),
+  .text-xl.font-bold:not([class*="text-neutral"]):not([class*="text-gray"]):not([class*="text-green"]):not([class*="text-red"]):not([class*="text-blue"]) {
+    @apply text-black dark:text-white;
   }
 }

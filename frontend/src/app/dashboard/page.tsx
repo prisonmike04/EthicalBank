@@ -227,20 +227,20 @@ export default function Dashboard() {
                 <div className="space-y-4">
                   <div className="flex items-center justify-between">
                     <span className="text-sm font-medium">Overall Score</span>
-                    <span className="text-2xl font-bold">{insights.healthScore.overall}/100</span>
+                    <span className="text-2xl font-bold text-black dark:text-white">{insights.healthScore.overall}/100</span>
                   </div>
                   <div className="space-y-2">
                     <div className="flex items-center justify-between text-sm">
                       <span>Savings Rate</span>
-                      <span className="font-medium">{insights.healthScore.savingsRate}%</span>
+                      <span className="font-medium text-black dark:text-white">{insights.healthScore.savingsRate}%</span>
                     </div>
                     <div className="flex items-center justify-between text-sm">
                       <span>Credit Score</span>
-                      <span className="font-medium">{insights.healthScore.creditScore}</span>
+                      <span className="font-medium text-black dark:text-white">{insights.healthScore.creditScore}</span>
                     </div>
                     <div className="flex items-center justify-between text-sm">
                       <span>Emergency Fund</span>
-                      <span className="font-medium">{insights.healthScore.emergencyFund} months</span>
+                      <span className="font-medium text-black dark:text-white">{insights.healthScore.emergencyFund} months</span>
                     </div>
                   </div>
                   <Link href="/ai-insights">
@@ -274,16 +274,16 @@ export default function Dashboard() {
                 <div className="space-y-4">
                   <div className="flex items-center justify-between">
                     <span className="text-sm font-medium">Privacy Score</span>
-                    <span className="text-2xl font-bold">{privacyScore.score}%</span>
+                    <span className="text-2xl font-bold text-black dark:text-white">{privacyScore.score}%</span>
                   </div>
                   <div className="space-y-2">
                     <div className="flex items-center justify-between text-sm">
                       <span>Attributes Allowed</span>
-                      <span className="font-medium">{privacyScore.allowedAttributes || 0}</span>
+                      <span className="font-medium text-black dark:text-white">{privacyScore.allowedAttributes || 0}</span>
                     </div>
                     <div className="flex items-center justify-between text-sm">
                       <span>Attributes Restricted</span>
-                      <span className="font-medium">{privacyScore.deniedAttributes || 0}</span>
+                      <span className="font-medium text-black dark:text-white">{privacyScore.deniedAttributes || 0}</span>
                     </div>
                   </div>
                   <Link href="/privacy-control">
@@ -511,11 +511,11 @@ export default function Dashboard() {
                   <div className="space-y-3">
                     <div className="flex items-center justify-between">
                       <span className="text-sm text-neutral-900 dark:text-neutral-100">Total Spent</span>
-                      <span className="font-bold">{formatCurrency(insights.spendingAnalysis.totalSpending)}</span>
+                      <span className="font-bold text-black dark:text-white">{formatCurrency(insights.spendingAnalysis.totalSpending)}</span>
                     </div>
                     <div className="flex items-center justify-between">
                       <span className="text-sm">Monthly Average</span>
-                      <span className="font-medium">{formatCurrency(insights.spendingAnalysis.monthlyAverage)}</span>
+                      <span className="font-medium text-black dark:text-white">{formatCurrency(insights.spendingAnalysis.monthlyAverage)}</span>
                     </div>
                     {insights.spendingAnalysis.wasteAnalysis && insights.spendingAnalysis.wasteAnalysis.length > 0 && (
                       <div className="pt-3 border-t border-neutral-200 dark:border-neutral-700">
@@ -697,7 +697,7 @@ export default function Dashboard() {
               <Clock className="h-4 w-4 text-neutral-500" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">{transactionStats?.totalTransactions || 0}</div>
+              <div className="text-2xl font-bold text-black dark:text-white">{transactionStats?.totalTransactions || 0}</div>
               <p className="text-xs text-neutral-600 dark:text-neutral-400">
                 Transactions
               </p>
@@ -716,7 +716,7 @@ export default function Dashboard() {
               <AlertCircle className="h-4 w-4 text-yellow-500" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">{transactionStats?.flaggedCount || 0}</div>
+              <div className="text-2xl font-bold text-black dark:text-white">{transactionStats?.flaggedCount || 0}</div>
               <p className="text-xs text-neutral-600 dark:text-neutral-400">
                 Transactions needing attention
               </p>
@@ -729,7 +729,7 @@ export default function Dashboard() {
               <Target className="h-4 w-4 text-purple-500" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">{savingsSummary?.activeGoals || 0}</div>
+              <div className="text-2xl font-bold text-black dark:text-white">{savingsSummary?.activeGoals || 0}</div>
               <p className="text-xs text-neutral-600 dark:text-neutral-400">
                 Active savings goals
               </p>
