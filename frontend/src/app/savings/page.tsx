@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 'use client'
 
 import { AppLayout } from '@/components/app-layout'
@@ -206,7 +207,7 @@ export default function Savings() {
         description: transactionForm.description || `${transactionForm.type === 'credit' ? 'Deposit' : 'Withdrawal'} to ${savingsAccount.name}`,
         category: transactionForm.category,
         currency: 'INR',
-      }, true) // Skip AI for faster processing
+      }, false) // Enable AI analysis for spending wisdom insights
       
       setShowTransactionModal(null)
       setTransactionForm({
@@ -265,10 +266,10 @@ export default function Savings() {
               Build your financial future with smart saving strategies
             </p>
           </div>
-          <div className="flex space-x-3">
-            <Button variant="outline" className="flex items-center">
-              <Calculator className="h-4 w-4 mr-2" />
-              Savings Calculator
+          <div className="flex space-x-3 text-black-600">
+            <Button variant="outline" className="flex items-center text-black-600">
+              <Calculator className="h-4 w-4 mr-2 text-black-600" />
+              <span className="text-black">Savings Calculator</span>
             </Button>
             <Button className="flex items-center" onClick={() => setShowGoalForm(true)}>
               <Plus className="h-4 w-4 mr-2" />
@@ -426,11 +427,11 @@ export default function Savings() {
                           })
                         }}
                       >
-                        <Plus className="h-3 w-3 mr-1" />
+                        <Plus className="h-3 w-3 mr-1 " />
                         Add Transaction
                       </Button>
                       <Button 
-                        variant="outline" 
+                        variant="outline"
                         size="sm"
                         onClick={() => {
                           setEditingAccount(account)
@@ -456,6 +457,7 @@ export default function Savings() {
                           }
                         }}
                       >
+
                         <Trash2 className="h-3 w-3" />
                       </Button>
                     </div>
@@ -473,7 +475,7 @@ export default function Savings() {
               <Target className="h-5 w-5 mr-2 text-orange-600" />
               Savings Goals
             </CardTitle>
-            <CardDescription>
+            <CardDescription className="text-black-600">
               Track your progress toward financial milestones
             </CardDescription>
           </CardHeader>
@@ -1073,7 +1075,7 @@ export default function Savings() {
                   />
                 </div>
                 <div>
-                  <label className="block text-sm font-medium mb-2">Description</label>
+                  <label className="block text-sm font-medium mb-2 text-black-600">Description</label>
                   <Input
                     value={transactionForm.description}
                     onChange={(e) => setTransactionForm({...transactionForm, description: e.target.value})}

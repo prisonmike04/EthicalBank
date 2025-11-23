@@ -697,15 +697,36 @@ def get_savings_summary(
     
     accounts_result = list(db.savings_accounts.aggregate(accounts_pipeline))
     
-    # Count goals separately (faster than fetching all)
-    goals_count = db.savings_goals.count_documents({"userId": user_id})
+    # Count only active goals (exclude Completed ones)
+    # We need to fetch goals to calculate status dynamically, but we can optimize by only fetching minimal fields
+    goals = list(db.savings_goals.find(
+        {"userId": user_id},
+        {"currentAmount": 1, "targetAmount": 1, "deadline": 1, "monthlyContribution": 1}
+    ))
+    
+    # Count active goals (status != "Completed")
+    active_goals_count = 0
+    for goal in goals:
+        deadline = goal.get("deadline")
+        if isinstance(deadline, str):
+            deadline = datetime.fromisoformat(deadline.replace('Z', '+00:00'))
+        elif not isinstance(deadline, datetime):
+            deadline = datetime.now()
+        
+        current = goal.get("currentAmount", 0)
+        target = goal.get("targetAmount", 0)
+        progress = (current / target) * 100 if target > 0 else 0
+        
+        # Only count as active if not completed (progress < 100)
+        if progress < 100:
+            active_goals_count += 1
     
     if not accounts_result:
         return {
             "totalSavings": 0,
             "totalMonthlyGrowth": 0,
             "averageAPY": 0,
-            "activeGoals": goals_count,
+            "activeGoals": active_goals_count,
             "totalAccounts": 0
         }
     
@@ -727,7 +748,7 @@ def get_savings_summary(
         "totalSavings": round(total_savings, 2),
         "totalMonthlyGrowth": round(total_monthly_growth, 2),
         "averageAPY": round(average_apy, 2),
-        "activeGoals": goals_count,
+        "activeGoals": active_goals_count,
         "totalAccounts": stats.get("totalAccounts", 0)
     }
 

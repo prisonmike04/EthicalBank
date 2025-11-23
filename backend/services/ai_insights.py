@@ -1,7 +1,7 @@
 """
 AI Insights Service - Comprehensive financial insights and planning
 """
-from fastapi import APIRouter, HTTPException, Depends, Header
+from fastapi import APIRouter, HTTPException, Depends, Header, Query
 from pydantic import BaseModel, Field
 from typing import Optional, List, Dict, Any
 from datetime import datetime, timedelta
@@ -238,15 +238,18 @@ Return JSON:
     "attributes_used": ["transactions.amount", "transactions.category", "user.income"]
 }}"""
         
+        # For reasoning models, we need much higher token limits
+        # Reasoning tokens are separate from completion tokens, but max_completion_tokens
+        # should be set high enough to allow actual content generation
         response = client.chat.completions.create(
             model=settings.openai_model,
             messages=[
-                {"role": "system", "content": "You are a financial advisor AI. Analyze spending patterns and identify wasteful spending with specific recommendations."},
+                {"role": "system", "content": "You are a financial advisor AI. Analyze spending patterns and identify wasteful spending with specific recommendations. Be concise and direct in your analysis."},
                 {"role": "user", "content": prompt}
             ],
             response_format={"type": "json_object"},
             timeout=45.0,  # 45 second timeout
-            max_completion_tokens=1500  # Reduced from 4000 to 1500 for faster generation
+            max_completion_tokens=4000  # Very high limit to ensure content is generated even with reasoning tokens
         )
         
         # Debug logging
@@ -364,15 +367,18 @@ Return JSON:
     "attributes_used": ["user.income", "savings_accounts.balance"]
 }}"""
         
+        # For reasoning models, we need much higher token limits
+        # Reasoning tokens are separate from completion tokens, but max_completion_tokens
+        # should be set high enough to allow actual content generation
         response = client.chat.completions.create(
             model=settings.openai_model,
             messages=[
-                {"role": "system", "content": "You are a financial planner AI. Create actionable plans."},
+                {"role": "system", "content": "You are a financial planner AI. Create actionable plans. Be concise and direct in your recommendations."},
                 {"role": "user", "content": prompt}
             ],
             response_format={"type": "json_object"},
             timeout=45.0,  # 45 second timeout
-            max_completion_tokens=1500  # Reduced from 4000 to 1500 for faster generation
+            max_completion_tokens=4000  # Very high limit to ensure content is generated even with reasoning tokens
         )
         
         # Debug logging
@@ -423,25 +429,27 @@ Return JSON:
 @router.get("/comprehensive")
 def get_comprehensive_insights(
     x_clerk_user_id: str = Header(..., alias="x-clerk-user-id"),
+    refresh: bool = Query(False, description="Force refresh and bypass cache"),
     db = Depends(get_database)
 ):
-    """Get comprehensive AI insights including financial planning, spending analysis, and health score"""
+    """Get comprehensive AI insights including financial planning, spending analysis, and health score (cached for 30 minutes)"""
     try:
         logger.info(f"Starting comprehensive insights request for user: {x_clerk_user_id}")
         user = get_user_from_clerk_id(x_clerk_user_id, db)
         user_id = user["_id"]
         logger.info(f"Found user with ID: {user_id}")
         
-        # Check for cached insights (cache for 10 minutes)
-        cache_key = f"ai_insights_{user_id}"
-        cached_insights = db.ai_insights_cache.find_one({"_id": cache_key})
-        
-        if cached_insights:
-            cache_age = (datetime.now() - cached_insights.get("created_at", datetime.now())).total_seconds()
-            if cache_age < 600:  # 10 minutes
-                logger.info(f"Returning cached insights (age: {cache_age:.1f}s)")
-                cached_data = cached_insights["data"]
-                return ComprehensiveInsightsResponse(**cached_data)
+        # Check for cached insights (unless refresh is requested)
+        if not refresh:
+            cache_key = f"ai_insights_{user_id}"
+            cached_insights = db.ai_insights_cache.find_one({"_id": cache_key})
+            
+            if cached_insights:
+                cache_age = (datetime.now() - cached_insights.get("created_at", datetime.now())).total_seconds()
+                if cache_age < 1800:  # 30 minutes (1800 seconds)
+                    logger.info(f"Returning cached insights (age: {cache_age:.1f}s)")
+                    cached_data = cached_insights["data"]
+                    return ComprehensiveInsightsResponse(**cached_data)
         
         # Get profile data
         user_profile = db.users.find_one({"_id": user_id})
@@ -597,12 +605,14 @@ def get_comprehensive_insights(
             attributes_used=allowed_attributes
         )
         
-        # Cache the response for 10 minutes
+        # Cache the response for 30 minutes
         try:
+            cache_key = f"ai_insights_{user_id}"
             cache_data = {
                 "_id": cache_key,
                 "data": response.dict(),
-                "created_at": datetime.now()
+                "created_at": datetime.now(),
+                "userId": user_id
             }
             db.ai_insights_cache.replace_one({"_id": cache_key}, cache_data, upsert=True)
             logger.info(f"Cached insights for user {user_id}")

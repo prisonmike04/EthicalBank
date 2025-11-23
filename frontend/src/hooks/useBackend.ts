@@ -2,7 +2,7 @@
 /**
  * Hooks for Backend API (Python FastAPI)
  */
-import { useState, useCallback } from 'react'
+import { useState, useCallback, useEffect } from 'react'
 import { useUser } from '@clerk/nextjs'
 import { backendAPI, BackendResponse } from '@/lib/backend-api'
 import { dataPrefetchService } from '@/lib/data-prefetch'
@@ -756,30 +756,59 @@ export function useTransactions() {
     }
   }, [user?.id])
 
-  const fetchRecommendations = useCallback(async () => {
+  const fetchRecommendations = useCallback(async (forceRefresh: boolean = false) => {
     if (!user?.id) return
+    
+    const cacheKey = `transaction_recommendations_${user.id}`
+    const CACHE_DURATION = 30 * 60 * 1000 // 30 minutes in milliseconds
+    
+    // Check localStorage cache first (unless forcing refresh)
+    if (!forceRefresh && typeof window !== 'undefined') {
+      try {
+        const cached = localStorage.getItem(cacheKey)
+        if (cached) {
+          const { data, timestamp } = JSON.parse(cached)
+          const age = Date.now() - timestamp
+          if (age < CACHE_DURATION) {
+            // Show cached data immediately
+            setRecommendations(data.recommendations || [])
+            setIsRecommendationsLoading(false)
+            
+            // Fetch fresh data in background
+            backendAPI.getTransactionRecommendations(user.id, false).then((freshData: any) => {
+              setRecommendations(freshData.recommendations || [])
+              localStorage.setItem(cacheKey, JSON.stringify({
+                data: freshData,
+                timestamp: Date.now()
+              }))
+            }).catch(() => {})
+            return data
+          }
+        }
+      } catch (e) {
+        // Ignore cache errors
+      }
+    }
     
     try {
       setIsRecommendationsLoading(true)
       setError(null)
       
-      // Check cache first
-      const cacheKey = `transactions-recommendations:${user.id}`
-      const cached = dataPrefetchService.get(cacheKey)
-      if (cached) {
-        setRecommendations((cached as any).recommendations || [])
-        setIsRecommendationsLoading(false)
-        // Still fetch in background to update cache
-        backendAPI.getTransactionRecommendations(user.id).then(data => {
-          dataPrefetchService.set(cacheKey, data)
-          setRecommendations((data as any).recommendations || [])
-        }).catch(() => {})
-        return cached
+      const data = await backendAPI.getTransactionRecommendations(user.id, forceRefresh) as any
+      setRecommendations(data.recommendations || [])
+      
+      // Cache in localStorage
+      if (typeof window !== 'undefined') {
+        try {
+          localStorage.setItem(cacheKey, JSON.stringify({
+            data,
+            timestamp: Date.now()
+          }))
+        } catch (e) {
+          // Ignore localStorage errors (quota exceeded, etc.)
+        }
       }
       
-      const data = await backendAPI.getTransactionRecommendations(user.id) as any
-      dataPrefetchService.set(cacheKey, data)
-      setRecommendations(data.recommendations || [])
       return data
     } catch (err: any) {
       setError(err.message || 'Failed to fetch recommendations')
@@ -797,7 +826,7 @@ export function useTransactions() {
     ])
   }, [fetchTransactions, fetchStats, fetchRecommendations])
 
-  const createTransaction = useCallback(async (data: any, skipAI: boolean = true) => {
+  const createTransaction = useCallback(async (data: any, skipAI: boolean = false) => {
     if (!user?.id) throw new Error('User not authenticated')
     
     try {
@@ -805,6 +834,17 @@ export function useTransactions() {
       setError(null)
       const newTransaction = await backendAPI.createTransaction(user.id, data, skipAI)
       setTransactions(prev => [newTransaction, ...prev])
+      
+      // Invalidate localStorage caches (new transaction affects recommendations and insights)
+      if (typeof window !== 'undefined') {
+        try {
+          localStorage.removeItem(`transaction_recommendations_${user.id}`)
+          localStorage.removeItem(`ai_insights_${user.id}`)
+        } catch (e) {
+          // Ignore errors
+        }
+      }
+      
       // Don't await these - let them run in background
       Promise.all([
         fetchStats().catch(() => {}),
@@ -827,6 +867,17 @@ export function useTransactions() {
       setError(null)
       await backendAPI.deleteTransaction(user.id, transactionId)
       setTransactions(prev => prev.filter(t => t.id !== transactionId))
+      
+      // Invalidate localStorage caches (deleted transaction affects recommendations and insights)
+      if (typeof window !== 'undefined') {
+        try {
+          localStorage.removeItem(`transaction_recommendations_${user.id}`)
+          localStorage.removeItem(`ai_insights_${user.id}`)
+        } catch (e) {
+          // Ignore errors
+        }
+      }
+      
       await fetchStats()
       await fetchRecommendations()
     } catch (err: any) {
@@ -891,60 +942,89 @@ export function useAIInsights() {
   const [error, setError] = useState<string | null>(null)
   const [isRefreshing, setIsRefreshing] = useState(false)
 
+  // Load from cache on mount
+  useEffect(() => {
+    if (!user?.id || typeof window === 'undefined') return
+    
+    const cacheKey = `ai_insights_${user.id}`
+    const CACHE_DURATION = 30 * 60 * 1000 // 30 minutes
+    
+    try {
+      const cached = localStorage.getItem(cacheKey)
+      if (cached) {
+        const { data, timestamp } = JSON.parse(cached)
+        const age = Date.now() - timestamp
+        if (age < CACHE_DURATION) {
+          // Load cached data immediately
+          setInsights(data)
+        }
+      }
+    } catch (e) {
+      // Ignore cache errors
+    }
+  }, [user?.id])
+
   const fetchInsights = useCallback(async (forceRefresh: boolean = false) => {
     if (!user?.id) return
     
-    try {
-      // Don't show loading if we have cached data and not forcing refresh
-      const cacheKey = `ai-insights:${user.id}`
-      const cached = dataPrefetchService.get(cacheKey)
-      
-      if (cached && !forceRefresh) {
-        // Show cached data immediately
-        setInsights(cached)
-        setError(null)
-        setIsLoading(false)
-        
-        // Refresh in background without blocking UI
-        setIsRefreshing(true)
-        try {
-          const data = await backendAPI.getComprehensiveInsights(user.id)
-          dataPrefetchService.set(cacheKey, data)
-          setInsights(data)
-        } catch (err: any) {
-          // Silently fail background refresh - keep showing cached data
-          console.warn('Background refresh failed:', err.message)
-        } finally {
-          setIsRefreshing(false)
+    const cacheKey = `ai_insights_${user.id}`
+    const CACHE_DURATION = 30 * 60 * 1000 // 30 minutes in milliseconds
+    
+    // Check localStorage cache first (unless forcing refresh)
+    if (!forceRefresh && typeof window !== 'undefined') {
+      try {
+        const cached = localStorage.getItem(cacheKey)
+        if (cached) {
+          const { data, timestamp } = JSON.parse(cached)
+          const age = Date.now() - timestamp
+          if (age < CACHE_DURATION) {
+            // Show cached data immediately
+            setInsights(data)
+            setIsLoading(false)
+            setIsRefreshing(true)
+            
+            // Fetch fresh data in background
+            backendAPI.getComprehensiveInsights(user.id, false).then((freshData) => {
+              setInsights(freshData)
+              setIsRefreshing(false)
+              localStorage.setItem(cacheKey, JSON.stringify({
+                data: freshData,
+                timestamp: Date.now()
+              }))
+            }).catch(() => {
+              setIsRefreshing(false)
+            })
+            return data
+          }
         }
-        return cached
+      } catch (e) {
+        // Ignore cache errors
       }
-      
-      // No cache or forcing refresh - show loading
+    }
+    
+    try {
       setIsLoading(true)
       setError(null)
       
-      const data = await backendAPI.getComprehensiveInsights(user.id)
-      dataPrefetchService.set(cacheKey, data)
+      const data = await backendAPI.getComprehensiveInsights(user.id, forceRefresh)
       setInsights(data)
-      setError(null)
-      return data
-    } catch (err: any) {
-      // Check if we have cached data to show even on error
-      const cacheKey = `ai-insights:${user.id}`
-      const cached = dataPrefetchService.get(cacheKey)
       
-      if (cached) {
-        // Show cached data even if refresh failed
-        setInsights(cached)
-        setError(`Using cached data. ${err.message || 'Failed to refresh insights'}`)
-      } else {
-        // No cache available - show error
-        setError(err.message || 'Failed to fetch AI insights')
-        setInsights(null)
+      // Cache in localStorage
+      if (typeof window !== 'undefined') {
+        try {
+          localStorage.setItem(cacheKey, JSON.stringify({
+            data,
+            timestamp: Date.now()
+          }))
+        } catch (e) {
+          // Ignore localStorage errors (quota exceeded, etc.)
+        }
       }
       
-      // Don't throw - let component handle error state
+      return data
+    } catch (err: any) {
+      setError(err.message || 'Failed to fetch AI insights')
+      setInsights(null)
       return null
     } finally {
       setIsLoading(false)
@@ -969,6 +1049,29 @@ export function useDataAccessControl() {
   const [privacyScore, setPrivacyScore] = useState<any>(null)
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [isRefreshing, setIsRefreshing] = useState(false)
+
+  // Load privacy score from cache on mount
+  useEffect(() => {
+    if (!user?.id || typeof window === 'undefined') return
+    
+    const cacheKey = `privacy_score_${user.id}`
+    const CACHE_DURATION = 30 * 60 * 1000 // 30 minutes
+    
+    try {
+      const cached = localStorage.getItem(cacheKey)
+      if (cached) {
+        const { data, timestamp } = JSON.parse(cached)
+        const age = Date.now() - timestamp
+        if (age < CACHE_DURATION) {
+          // Load cached data immediately
+          setPrivacyScore(data)
+        }
+      }
+    } catch (e) {
+      // Ignore cache errors
+    }
+  }, [user?.id])
 
   const fetchAttributes = useCallback(async () => {
     if (!user?.id) return
@@ -1004,25 +1107,6 @@ export function useDataAccessControl() {
     }
   }, [user?.id])
 
-  const updatePermissions = useCallback(async (permissions: any[]) => {
-    if (!user?.id) throw new Error('User not authenticated')
-    
-    try {
-      setIsLoading(true)
-      setError(null)
-      const data = await backendAPI.updateDataAccessPermissions(user.id, permissions)
-      setPermissions(data)
-      await fetchConsentHistory()
-      await fetchPrivacyScore()
-      return data
-    } catch (err: any) {
-      setError(err.message || 'Failed to update permissions')
-      throw err
-    } finally {
-      setIsLoading(false)
-    }
-  }, [user?.id])
-
   const fetchConsentHistory = useCallback(async () => {
     if (!user?.id) return
     
@@ -1040,38 +1124,101 @@ export function useDataAccessControl() {
     }
   }, [user?.id])
 
-  const fetchPrivacyScore = useCallback(async () => {
+  const fetchPrivacyScore = useCallback(async (forceRefresh: boolean = false) => {
     if (!user?.id) return
+    
+    const cacheKey = `privacy_score_${user.id}`
+    const CACHE_DURATION = 30 * 60 * 1000 // 30 minutes in milliseconds
+    
+    // Check localStorage cache first (unless forcing refresh)
+    if (!forceRefresh && typeof window !== 'undefined') {
+      try {
+        const cached = localStorage.getItem(cacheKey)
+        if (cached) {
+          const { data, timestamp } = JSON.parse(cached)
+          const age = Date.now() - timestamp
+          if (age < CACHE_DURATION) {
+            // Show cached data immediately
+            setPrivacyScore(data)
+            setIsLoading(false)
+            setIsRefreshing(true)
+            
+            // Fetch fresh data in background
+            backendAPI.getPrivacyScore(user.id, false).then((freshData) => {
+              setPrivacyScore(freshData)
+              setIsRefreshing(false)
+              localStorage.setItem(cacheKey, JSON.stringify({
+                data: freshData,
+                timestamp: Date.now()
+              }))
+            }).catch(() => {
+              setIsRefreshing(false)
+            })
+            return data
+          }
+        }
+      } catch (e) {
+        // Ignore cache errors
+      }
+    }
     
     try {
       setIsLoading(true)
       setError(null)
       
-      // Check cache first
-      const cacheKey = `privacy-score:${user.id}`
-      const cached = dataPrefetchService.get(cacheKey)
-      if (cached) {
-        setPrivacyScore(cached)
-        setIsLoading(false)
-        // Still fetch in background to update cache
-        backendAPI.getPrivacyScore(user.id).then(data => {
-          dataPrefetchService.set(cacheKey, data)
-          setPrivacyScore(data)
-        }).catch(() => {})
-        return cached
+      const data = await backendAPI.getPrivacyScore(user.id, forceRefresh)
+      setPrivacyScore(data)
+      
+      // Cache in localStorage
+      if (typeof window !== 'undefined') {
+        try {
+          localStorage.setItem(cacheKey, JSON.stringify({
+            data,
+            timestamp: Date.now()
+          }))
+        } catch (e) {
+          // Ignore localStorage errors (quota exceeded, etc.)
+        }
       }
       
-      const data = await backendAPI.getPrivacyScore(user.id)
-      dataPrefetchService.set(cacheKey, data)
-      setPrivacyScore(data)
       return data
     } catch (err: any) {
       setError(err.message || 'Failed to fetch privacy score')
       throw err
     } finally {
       setIsLoading(false)
+      setIsRefreshing(false)
     }
   }, [user?.id])
+
+  const updatePermissions = useCallback(async (permissions: any[]) => {
+    if (!user?.id) throw new Error('User not authenticated')
+    
+    try {
+      setIsLoading(true)
+      setError(null)
+      const data = await backendAPI.updateDataAccessPermissions(user.id, permissions)
+      setPermissions(data)
+      
+      // Invalidate localStorage cache (permissions changed affects privacy score)
+      if (typeof window !== 'undefined') {
+        try {
+          localStorage.removeItem(`privacy_score_${user.id}`)
+        } catch (e) {
+          // Ignore errors
+        }
+      }
+      
+      await fetchConsentHistory()
+      await fetchPrivacyScore()
+      return data
+    } catch (err: any) {
+      setError(err.message || 'Failed to update permissions')
+      throw err
+    } finally {
+      setIsLoading(false)
+    }
+  }, [user?.id, fetchConsentHistory, fetchPrivacyScore])
 
   const fetchAll = useCallback(async () => {
     await Promise.all([
@@ -1088,6 +1235,7 @@ export function useDataAccessControl() {
     consentHistory,
     privacyScore,
     isLoading,
+    isRefreshing,
     error,
     fetchAttributes,
     fetchPermissions,

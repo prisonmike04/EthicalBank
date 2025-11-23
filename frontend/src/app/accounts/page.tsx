@@ -141,7 +141,7 @@ export default function Accounts() {
         description: transactionForm.description || `${transactionForm.type === 'credit' ? 'Deposit' : 'Withdrawal'} transaction`,
         category: transactionForm.category,
         currency: 'INR',
-      }, true) // Skip AI for faster processing
+      }, false) // Enable AI analysis for spending wisdom insights
       
       setShowTransactionModal(null)
       setTransactionForm({

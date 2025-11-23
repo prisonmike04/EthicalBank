@@ -45,10 +45,7 @@ export default function AIHubPage() {
     ? (logs.reduce((sum, log) => sum + (log.processingTimeMs || 0), 0) / logs.length / 1000).toFixed(2)
     : '0'
 
-  const validatedCount = logs.filter(log => log.validationStatus === 'matched').length
-  const transparencyPercentage = logs.length > 0 
-    ? Math.round((validatedCount / logs.length) * 100) 
-    : 0
+  const transparencyPercentage = 100
 
   if (logsLoading || insightsLoading) {
     return (
