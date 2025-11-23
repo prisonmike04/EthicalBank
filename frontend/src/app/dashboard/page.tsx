@@ -52,14 +52,14 @@ export default function Dashboard() {
   const { accounts, summary: accountsSummary, fetchAll: fetchAccounts, isLoading: accountsLoading } = useAccounts()
   const { transactions, stats: transactionStats, recommendations: transactionRecommendations, fetchAll: fetchTransactions, isRecommendationsLoading } = useTransactions()
   const { summary: savingsSummary, fetchAll: fetchSavings } = useSavings()
-  const { insights, fetchInsights } = useAIInsights()
-  const { privacyScore, fetchPrivacyScore } = useDataAccessControl()
+  const { insights, fetchInsights, isLoading: insightsLoading, isRefreshing: insightsRefreshing } = useAIInsights()
+  const { privacyScore, fetchPrivacyScore, isLoading: privacyLoading, isRefreshing: privacyScoreRefreshing } = useDataAccessControl()
 
   const [refreshing, setRefreshing] = useState(false)
 
   const fetchAll = useCallback(async (force: boolean = false) => {
     // Skip if data already loaded and not forcing
-    if (!force && accounts.length > 0 && accountsSummary) {
+    if (!force && accounts.length > 0 && accountsSummary && insights && privacyScore) {
       return
     }
     
@@ -69,15 +69,17 @@ export default function Dashboard() {
         fetchAccounts(),
         fetchTransactions(),
         fetchSavings(),
-        fetchInsights(),
-        fetchPrivacyScore(),
+        // Only fetch insights if not already loaded (or forcing refresh)
+        (!insights || force) ? fetchInsights(force) : Promise.resolve(),
+        // Only fetch privacy score if not already loaded (or forcing refresh)
+        (!privacyScore || force) ? fetchPrivacyScore(force) : Promise.resolve(),
       ])
     } catch (error) {
       console.error('Error fetching dashboard data:', error)
     } finally {
       setRefreshing(false)
     }
-  }, [accounts.length, accountsSummary, fetchAccounts, fetchTransactions, fetchSavings, fetchInsights, fetchPrivacyScore])
+  }, [accounts.length, accountsSummary, insights, privacyScore, fetchAccounts, fetchTransactions, fetchSavings, fetchInsights, fetchPrivacyScore])
 
   useEffect(() => {
     // Only fetch if user is loaded and we don't have data yet
@@ -214,37 +216,54 @@ export default function Dashboard() {
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           <Card>
             <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Target className="h-5 w-5 text-green-600" />
-                Financial Health Score
-              </CardTitle>
-              <CardDescription>
-                AI assessment of your financial wellbeing
-              </CardDescription>
+              <div className="flex items-center justify-between">
+                <div>
+                  <CardTitle className="flex items-center gap-2">
+                    <Target className="h-5 w-5 text-green-600" />
+                    Financial Health Score
+                  </CardTitle>
+                  <CardDescription>
+                    AI assessment of your financial wellbeing
+                  </CardDescription>
+                </div>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => fetchInsights(true)}
+                  disabled={insightsLoading}
+                  title="Refresh health score (bypasses 30-minute cache)"
+                >
+                  {insightsLoading ? (
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                  ) : (
+                    <RefreshCw className="h-4 w-4" />
+                  )}
+                </Button>
+              </div>
             </CardHeader>
             <CardContent>
               {insights?.healthScore ? (
                 <div className="space-y-4">
                   <div className="flex items-center justify-between">
-                    <span className="text-sm font-medium">Overall Score</span>
+                    <span className="text-sm font-medium text-green-600">Overall Score</span>
                     <span className="text-2xl font-bold text-black dark:text-white">{insights.healthScore.overall}/100</span>
                   </div>
                   <div className="space-y-2">
-                    <div className="flex items-center justify-between text-sm">
+                    <div className="flex items-center justify-between text-sm text-green-600">
                       <span>Savings Rate</span>
                       <span className="font-medium text-black dark:text-white">{insights.healthScore.savingsRate}%</span>
                     </div>
-                    <div className="flex items-center justify-between text-sm">
+                    <div className="flex items-center justify-between text-sm text-green-600">
                       <span>Credit Score</span>
                       <span className="font-medium text-black dark:text-white">{insights.healthScore.creditScore}</span>
                     </div>
-                    <div className="flex items-center justify-between text-sm">
+                    <div className="flex items-center justify-between text-sm text-green-600">
                       <span>Emergency Fund</span>
                       <span className="font-medium text-black dark:text-white">{insights.healthScore.emergencyFund} months</span>
                     </div>
                   </div>
                   <Link href="/ai-insights">
-                    <Button variant="outline" className="w-full">
+                    <Button variant="outline" className="w-full text-black-600">
                       <Eye className="h-4 w-4 mr-2" />
                       View Detailed Insights
                     </Button>
@@ -261,33 +280,50 @@ export default function Dashboard() {
 
           <Card>
             <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Shield className="h-5 w-5 text-blue-600" />
-                Privacy Score
-              </CardTitle>
-              <CardDescription>
-                Your data privacy protection level
-              </CardDescription>
+              <div className="flex items-center justify-between">
+                <div>
+                  <CardTitle className="flex items-center gap-2">
+                    <Shield className="h-5 w-5 text-blue-600" />
+                    Privacy Score
+                  </CardTitle>
+                  <CardDescription>
+                    Your data privacy protection level
+                  </CardDescription>
+                </div>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => fetchPrivacyScore(true)}
+                  disabled={privacyLoading}
+                  title="Refresh privacy score (bypasses 30-minute cache)"
+                >
+                  {privacyLoading ? (
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                  ) : (
+                    <RefreshCw className="h-4 w-4" />
+                  )}
+                </Button>
+              </div>
             </CardHeader>
             <CardContent>
               {privacyScore ? (
                 <div className="space-y-4">
                   <div className="flex items-center justify-between">
-                    <span className="text-sm font-medium">Privacy Score</span>
+                    <span className="text-sm font-medium text-green-600">Privacy Score</span>
                     <span className="text-2xl font-bold text-black dark:text-white">{privacyScore.score}%</span>
                   </div>
                   <div className="space-y-2">
-                    <div className="flex items-center justify-between text-sm">
+                    <div className="flex items-center justify-between text-sm text-green-600">
                       <span>Attributes Allowed</span>
                       <span className="font-medium text-black dark:text-white">{privacyScore.allowedAttributes || 0}</span>
                     </div>
-                    <div className="flex items-center justify-between text-sm">
+                    <div className="flex items-center justify-between text-sm text-red-600">
                       <span>Attributes Restricted</span>
                       <span className="font-medium text-black dark:text-white">{privacyScore.deniedAttributes || 0}</span>
                     </div>
                   </div>
                   <Link href="/privacy-control">
-                    <Button variant="outline" className="w-full">
+                    <Button variant="outline" className="w-full text-green-600">
                       <Lock className="h-4 w-4 mr-2" />
                       Manage Privacy Settings
                     </Button>

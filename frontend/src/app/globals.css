@@ -115,38 +115,63 @@ body {
   }
   body {
     @apply bg-background text-foreground;
-    color: hsl(var(--foreground));
   }
+  
+  /* GLOBAL DEFAULT: All elements inherit proper text color unless overridden */
+  * {
+    color: inherit;
+  }
+  
+  /* Set strong default text colors for all common elements */
+  div, span, p, a, label, input, textarea, select, button {
+    @apply text-neutral-900 dark:text-white;
+  }
+  
   /* Ensure headings are dark by default */
   h1, h2, h3, h4, h5, h6 {
     @apply text-neutral-900 dark:text-neutral-100;
   }
-  /* Ensure paragraphs and text are readable by default - but allow overrides */
-  p:not([class*="text-"]) {
-    @apply text-neutral-900 dark:text-neutral-100;
+  
+  /* Allow explicit text color classes to override */
+  [class*="text-neutral"],
+  [class*="text-gray"],
+  [class*="text-slate"],
+  [class*="text-zinc"],
+  [class*="text-stone"],
+  [class*="text-red"],
+  [class*="text-orange"],
+  [class*="text-amber"],
+  [class*="text-yellow"],
+  [class*="text-lime"],
+  [class*="text-green"],
+  [class*="text-emerald"],
+  [class*="text-teal"],
+  [class*="text-cyan"],
+  [class*="text-sky"],
+  [class*="text-blue"],
+  [class*="text-indigo"],
+  [class*="text-violet"],
+  [class*="text-purple"],
+  [class*="text-fuchsia"],
+  [class*="text-pink"],
+  [class*="text-rose"],
+  [class*="text-white"],
+  [class*="text-black"],
+  [class*="text-muted"],
+  [class*="text-primary"],
+  [class*="text-secondary"],
+  [class*="text-accent"],
+  [class*="text-destructive"],
+  [class*="text-foreground"],
+  [class*="text-background"],
+  [class*="text-card"],
+  [class*="text-popover"] {
+    /* These will use their explicitly defined color */
   }
-  /* Ensure card content text is dark by default */
-  [class*="card"] p:not([class*="text-"]),
-  [class*="Card"] p:not([class*="text-"]) {
-    @apply text-neutral-900 dark:text-neutral-100;
-  }
+  
   /* Ensure important data values are dark/black for readability */
   .text-data,
   [data-value] {
     @apply text-black dark:text-white !important;
-  }
-  /* Override overly light text colors for better readability in light mode */
-  .text-neutral-400:not(.keep-light),
-  .text-neutral-500:not(.keep-light) {
-    @apply text-neutral-700 dark:text-neutral-300;
-  }
-  /* Ensure CardContent children have proper text color if no explicit color */
-  [class*="CardContent"] > div:not([class*="text-neutral"]):not([class*="text-gray"]):not([class*="text-green"]):not([class*="text-red"]):not([class*="text-blue"]):not([class*="text-yellow"]):not([class*="text-"]) {
-    @apply text-neutral-900 dark:text-neutral-100;
-  }
-  /* Ensure large bold text (usually values/numbers) are dark */
-  .text-2xl.font-bold:not([class*="text-neutral"]):not([class*="text-gray"]):not([class*="text-green"]):not([class*="text-red"]):not([class*="text-blue"]),
-  .text-xl.font-bold:not([class*="text-neutral"]):not([class*="text-gray"]):not([class*="text-green"]):not([class*="text-red"]):not([class*="text-blue"]) {
-    @apply text-black dark:text-white;
   }
 }

@@ -204,7 +204,7 @@ export function AIChatbot() {
                 <div className="flex items-start gap-3 max-w-[85%]">
                   <div className="flex-1 flex flex-col items-end">
                     <div className="bg-blue-600 dark:bg-blue-700 text-white rounded-2xl rounded-tr-sm px-4 py-3 shadow-sm">
-                      <p className="text-sm leading-relaxed whitespace-pre-wrap break-words">
+                      <p className="text-sm leading-relaxed whitespace-pre-wrap break-words text-white">
                         {item.query}
                       </p>
                     </div>

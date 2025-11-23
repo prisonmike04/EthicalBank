@@ -65,13 +65,16 @@ def get_user_from_clerk_id(clerk_id: str, db):
     return user
 
 def analyze_transaction_with_ai(transaction_data: Dict, user_data: Dict, db) -> Dict:
-    """Analyze transaction with AI for fraud detection and categorization"""
+    """Analyze transaction with AI for fraud detection, categorization, and spending wisdom"""
     if not client:
         return {
             "fraudScore": 0.1,
             "riskLevel": "low",
             "categoryConfidence": 0.8,
             "anomalyScore": 0.0,
+            "spendingWisdom": "neutral",
+            "wisdomScore": 0.5,
+            "wisdomReason": "AI analysis unavailable",
             "explanation": "AI analysis unavailable"
         }
     
@@ -83,35 +86,63 @@ def analyze_transaction_with_ai(transaction_data: Dict, user_data: Dict, db) -> 
                 "userId": user_data["userId"],
                 "createdAt": {"$gte": six_months_ago}
             },
-            {"amount": 1, "category": 1, "type": 1, "merchantName": 1}
+            {"amount": 1, "category": 1, "type": 1, "merchantName": 1, "description": 1}
         ).limit(50))
         
         avg_amount = sum(t.get("amount", 0) for t in recent_transactions) / len(recent_transactions) if recent_transactions else 0
         common_categories = {}
+        monthly_spending = {}
         for t in recent_transactions:
             cat = t.get("category", "other")
             common_categories[cat] = common_categories.get(cat, 0) + 1
+            if t.get("type") == "debit":
+                month = t.get("createdAt", datetime.now()).strftime("%Y-%m")
+                monthly_spending[month] = monthly_spending.get(month, 0) + t.get("amount", 0)
+        
+        avg_monthly_spending = sum(monthly_spending.values()) / len(monthly_spending) if monthly_spending else 0
+        monthly_income = user_data.get("income", 0) / 12 if user_data.get("income", 0) > 0 else 0
+        
+        # Get user's savings goals and accounts
+        savings_goals = list(db.savings_goals.find({"userId": user_data["userId"]}).limit(5))
+        savings_accounts = list(db.savings_accounts.find({"userId": user_data["userId"]}).limit(5))
+        total_savings = sum(acc.get("balance", 0) for acc in savings_accounts)
         
         prompt = f"""
-        Analyze this transaction for fraud risk and provide insights:
+        Analyze this transaction comprehensively:
         
-        Transaction:
-        - Amount: {transaction_data['amount']}
+        Transaction Details:
+        - Amount: ₹{transaction_data['amount']:,.2f}
         - Type: {transaction_data['type']}
         - Description: {transaction_data['description']}
         - Category: {transaction_data['category']}
         - Merchant: {transaction_data.get('merchantName', 'Unknown')}
         
-        User's Typical Patterns:
-        - Average transaction amount: {avg_amount:.2f}
-        - Common categories: {json.dumps(common_categories, indent=2)}
+        User's Financial Profile:
+        - Monthly Income: ₹{monthly_income:,.2f}
+        - Average Monthly Spending: ₹{avg_monthly_spending:,.2f}
+        - Total Savings: ₹{total_savings:,.2f}
+        - Credit Score: {user_data.get('creditScore', 'N/A')}
+        - Active Savings Goals: {len(savings_goals)}
+        - Average Transaction Amount: ₹{avg_amount:,.2f}
+        - Common Spending Categories: {json.dumps(common_categories, indent=2)}
         
-        Analyze:
+        Provide comprehensive analysis:
         1. Fraud risk score (0-1, where 0 is safe and 1 is highly suspicious)
         2. Risk level (low, medium, high)
         3. Category confidence (0-1)
-        4. Anomaly score (0-1) - how unusual this transaction is
-        5. Brief explanation
+        4. Anomaly score (0-1) - how unusual this transaction is compared to patterns
+        5. Spending Wisdom Assessment:
+           - spendingWisdom: "wise" | "unwise" | "neutral"
+           - wisdomScore: 0.0-1.0 (0 = very unwise, 1 = very wise)
+           - wisdomReason: Brief explanation (e.g., "This purchase aligns with your savings goals" or "This is an impulse purchase that exceeds your typical spending")
+        6. Brief overall explanation
+        
+        Consider for wisdom assessment:
+        - Is this aligned with financial goals?
+        - Is this an impulse purchase?
+        - Does this fit within normal spending patterns?
+        - Is this a necessary expense or discretionary?
+        - Impact on savings goals and financial health
         
         Return JSON:
         {{
@@ -119,21 +150,38 @@ def analyze_transaction_with_ai(transaction_data: Dict, user_data: Dict, db) -> 
             "riskLevel": "low|medium|high",
             "categoryConfidence": 0.0-1.0,
             "anomalyScore": 0.0-1.0,
-            "explanation": "Brief explanation of the analysis"
+            "spendingWisdom": "wise|unwise|neutral",
+            "wisdomScore": 0.0-1.0,
+            "wisdomReason": "Brief explanation of wisdom assessment",
+            "explanation": "Brief overall explanation"
         }}
         """
         
         response = client.chat.completions.create(
             model=settings.openai_model,
             messages=[
-                {"role": "system", "content": "You are a fraud detection AI. Analyze transactions for suspicious activity."},
+                {"role": "system", "content": "You are a comprehensive financial advisor AI. Analyze transactions for fraud risk AND spending wisdom. Provide honest, actionable insights."},
                 {"role": "user", "content": prompt}
             ],
-            response_format={"type": "json_object"}
+            response_format={"type": "json_object"},
+            timeout=30.0
         )
         
         ai_result = json.loads(response.choices[0].message.content)
-        return ai_result
+        
+        # Ensure all required fields are present
+        result = {
+            "fraudScore": ai_result.get("fraudScore", 0.1),
+            "riskLevel": ai_result.get("riskLevel", "low"),
+            "categoryConfidence": ai_result.get("categoryConfidence", 0.8),
+            "anomalyScore": ai_result.get("anomalyScore", 0.0),
+            "spendingWisdom": ai_result.get("spendingWisdom", "neutral"),
+            "wisdomScore": ai_result.get("wisdomScore", 0.5),
+            "wisdomReason": ai_result.get("wisdomReason", "Analysis completed"),
+            "explanation": ai_result.get("explanation", "Transaction analyzed")
+        }
+        
+        return result
     
     except Exception as e:
         logger.error(f"AI analysis error: {e}")
@@ -142,6 +190,9 @@ def analyze_transaction_with_ai(transaction_data: Dict, user_data: Dict, db) -> 
             "riskLevel": "low",
             "categoryConfidence": 0.8,
             "anomalyScore": 0.0,
+            "spendingWisdom": "neutral",
+            "wisdomScore": 0.5,
+            "wisdomReason": f"Analysis error: {str(e)}",
             "explanation": f"Analysis error: {str(e)}"
         }
 
@@ -305,11 +356,37 @@ def create_transaction(
     user = get_user_from_clerk_id(x_clerk_user_id, db)
     user_id = user["_id"]
     
-    # Verify account exists and belongs to user
+    # Verify account exists and belongs to user - check both accounts and savings_accounts
     account = db.accounts.find_one({
         "_id": ObjectId(transaction_data.accountId),
         "userId": user_id
     })
+    
+    # If not found in regular accounts, check savings accounts
+    savings_account = None
+    if not account:
+        savings_account = db.savings_accounts.find_one({
+            "_id": ObjectId(transaction_data.accountId),
+            "userId": user_id
+        })
+        if savings_account:
+            # Create a compatible account object from savings account
+            account = {
+                "_id": savings_account["_id"],
+                "userId": savings_account["userId"],
+                "accountNumber": savings_account.get("accountNumber", ""),
+                "accountType": "savings",
+                "balance": savings_account.get("balance", 0),
+                "currency": "INR",
+                "status": "active",
+                "name": savings_account.get("name"),
+                "metadata": {
+                    "interestRate": savings_account.get("interestRate"),
+                    "apy": savings_account.get("apy"),
+                    "minimumBalance": savings_account.get("minimumBalance", 0),
+                    "savingsAccountType": savings_account.get("accountType")
+                }
+            }
     
     if not account:
         raise HTTPException(status_code=404, detail="Account not found")
@@ -320,18 +397,26 @@ def create_transaction(
     
     # Update account balance first (fast operation)
     current_balance = account.get("balance", 0)
+    is_savings_account = savings_account is not None or account.get("accountType") == "savings"
+    min_balance = account.get("metadata", {}).get("minimumBalance", 0) if account.get("metadata") else 0
+    
     if transaction_data.type == "credit":
         new_balance = current_balance + transaction_data.amount
     else:  # debit
         new_balance = current_balance - transaction_data.amount
-        # Check for overdraft
+        # Check for overdraft or minimum balance violation
         if new_balance < 0:
-            min_balance = account.get("metadata", {}).get("minimumBalance", 0)
             if new_balance < -min_balance:
                 raise HTTPException(
                     status_code=400,
                     detail=f"Insufficient balance. Available: ₹{current_balance:,.2f}"
                 )
+        # For savings accounts, check minimum balance requirement
+        if is_savings_account and new_balance < min_balance:
+            raise HTTPException(
+                status_code=400,
+                detail=f"Withdrawal would violate minimum balance requirement of ₹{min_balance:,.2f}. Available: ₹{current_balance:,.2f}"
+            )
     
     # Prepare transaction data
     new_transaction = {
@@ -357,6 +442,9 @@ def create_transaction(
             "riskLevel": "low",
             "categoryConfidence": 0.8,
             "anomalyScore": 0.0,
+            "spendingWisdom": "neutral",
+            "wisdomScore": 0.5,
+            "wisdomReason": "AI analysis skipped",
             "explanation": "Transaction processed successfully"
         }
     else:
@@ -388,6 +476,9 @@ def create_transaction(
                 "riskLevel": "low",
                 "categoryConfidence": 0.8,
                 "anomalyScore": 0.0,
+                "spendingWisdom": "neutral",
+                "wisdomScore": 0.5,
+                "wisdomReason": "AI analysis unavailable",
                 "explanation": "Transaction processed successfully"
             }
     
@@ -395,20 +486,60 @@ def create_transaction(
     result = db.transactions.insert_one(new_transaction)
     new_transaction["_id"] = result.inserted_id
     
-    # Update account balance
-    db.accounts.update_one(
-        {"_id": ObjectId(transaction_data.accountId)},
-        {"$set": {"balance": new_balance, "updatedAt": datetime.now()}}
-    )
-    
-    # Also update savings_accounts if this is a savings account (optimize this query)
-    account_number = account.get("accountNumber")
-    if account_number:
+    # Update account balance - update the correct collection
+    if savings_account:
+        # Update savings account
         db.savings_accounts.update_one(
-            {"accountNumber": account_number},
-            {"$set": {"balance": new_balance, "updatedAt": datetime.now()}},
-            upsert=False  # Don't create if doesn't exist
+            {"_id": ObjectId(transaction_data.accountId)},
+            {"$set": {"balance": new_balance, "updatedAt": datetime.now()}}
         )
+        # Also sync to regular accounts if it exists there
+        account_number = account.get("accountNumber")
+        if account_number:
+            db.accounts.update_one(
+                {"accountNumber": account_number, "userId": user_id},
+                {"$set": {"balance": new_balance, "updatedAt": datetime.now()}},
+                upsert=False
+            )
+    else:
+        # Update regular account
+        db.accounts.update_one(
+            {"_id": ObjectId(transaction_data.accountId)},
+            {"$set": {"balance": new_balance, "updatedAt": datetime.now()}}
+        )
+        # Also update savings_accounts if this account number exists there
+        account_number = account.get("accountNumber")
+        if account_number:
+            db.savings_accounts.update_one(
+                {"accountNumber": account_number},
+                {"$set": {"balance": new_balance, "updatedAt": datetime.now()}},
+                upsert=False  # Don't create if doesn't exist
+            )
+    
+    # Trigger AI perception update in background (don't wait for it)
+    try:
+        # Invalidate perception cache so it regenerates on next request
+        db.ai_perceptions.update_one(
+            {"userId": user_id},
+            {"$set": {"lastAnalysis": datetime(1970, 1, 1)}},  # Set to old date to force refresh
+            upsert=False
+        )
+    except Exception as e:
+        logger.warning(f"Failed to invalidate perception cache: {e}")
+    
+    # Invalidate caches (new transaction may change recommendations, insights, and health score)
+    try:
+        # Invalidate transaction recommendations cache
+        cache_key = f"transaction_recommendations_{user_id}"
+        db.transaction_recommendations_cache.delete_one({"_id": cache_key})
+        logger.info(f"Invalidated recommendations cache for user {user_id}")
+        
+        # Invalidate comprehensive insights cache (includes health score)
+        insights_cache_key = f"ai_insights_{user_id}"
+        db.ai_insights_cache.delete_one({"_id": insights_cache_key})
+        logger.info(f"Invalidated insights cache for user {user_id}")
+    except Exception as e:
+        logger.warning(f"Failed to invalidate caches: {e}")
     
     return TransactionResponse(
         id=str(new_transaction["_id"]),
@@ -500,25 +631,65 @@ def get_transaction_stats(
 @router.get("/recommendations/insights")
 def get_transaction_recommendations_endpoint(
     x_clerk_user_id: str = Header(..., alias="x-clerk-user-id"),
+    refresh: bool = Query(False, description="Force refresh and bypass cache"),
     db = Depends(get_database)
 ):
-    """Get AI-powered transaction recommendations"""
+    """Get AI-powered transaction recommendations (cached for 30 minutes)"""
     user = get_user_from_clerk_id(x_clerk_user_id, db)
     user_id = user["_id"]
     
+    # Check cache first (unless refresh is requested)
+    if not refresh:
+        cache_key = f"transaction_recommendations_{user_id}"
+        cached_data = db.transaction_recommendations_cache.find_one({"_id": cache_key})
+        
+        if cached_data:
+            cache_age = (datetime.now() - cached_data.get("created_at", datetime.now())).total_seconds()
+            # Cache for 30 minutes (1800 seconds)
+            if cache_age < 1800:
+                logger.info(f"Returning cached recommendations (age: {cache_age:.1f}s)")
+                return {
+                    "recommendations": cached_data.get("recommendations", []),
+                    "cached": True,
+                    "cacheAge": round(cache_age, 1)
+                }
+    
+    # Generate new recommendations
     recommendations = get_transaction_recommendations(user_id, db)
     
+    # Convert to dict format for response and cache
+    recommendations_dict = [
+        {
+            "insight": rec.insight,
+            "recommendation": rec.recommendation,
+            "potentialSavings": rec.potentialSavings,
+            "category": rec.category,
+            "priority": rec.priority
+        }
+        for rec in recommendations
+    ]
+    
+    # Cache the recommendations for 30 minutes
+    try:
+        cache_key = f"transaction_recommendations_{user_id}"
+        cache_data = {
+            "_id": cache_key,
+            "recommendations": recommendations_dict,
+            "created_at": datetime.now(),
+            "userId": user_id
+        }
+        db.transaction_recommendations_cache.replace_one(
+            {"_id": cache_key},
+            cache_data,
+            upsert=True
+        )
+        logger.info(f"Cached recommendations for user {user_id}")
+    except Exception as e:
+        logger.warning(f"Failed to cache recommendations: {e}")
+    
     return {
-        "recommendations": [
-            {
-                "insight": rec.insight,
-                "recommendation": rec.recommendation,
-                "potentialSavings": rec.potentialSavings,
-                "category": rec.category,
-                "priority": rec.priority
-            }
-            for rec in recommendations
-        ]
+        "recommendations": recommendations_dict,
+        "cached": False
     }
 
 @router.get("/{transaction_id}", response_model=TransactionResponse)

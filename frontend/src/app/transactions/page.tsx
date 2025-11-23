@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 'use client'
 
 import { useState, useEffect } from 'react'
@@ -45,6 +46,7 @@ export default function Transactions() {
     fetchAll,
     createTransaction,
     deleteTransaction,
+    fetchRecommendations,
   } = useTransactions()
 
   const [transactionForm, setTransactionForm] = useState({
@@ -180,11 +182,11 @@ export default function Transactions() {
           </div>
           <div className="flex gap-2">
             <Button variant="outline" size="sm" onClick={() => fetchAll()} disabled={isLoading}>
-              <RefreshCw className={`h-4 w-4 mr-2 ${isLoading ? 'animate-spin' : ''}`} />
+              <RefreshCw className={`h-4 w-4 mr-2 text-black-600 ${isLoading ? 'animate-spin' : ''}`} />
               Refresh
             </Button>
             <Button size="sm" onClick={() => setShowTransactionForm(true)}>
-              <Plus className="h-4 w-4 mr-2" />
+              <Plus className="h-4 w-4 mr-2 text-black-600" />
               Add Transaction
             </Button>
           </div>
@@ -205,7 +207,7 @@ export default function Transactions() {
           <Card>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
               <CardTitle className="text-sm font-medium">Total Transactions</CardTitle>
-              <CreditCard className="h-4 w-4 text-neutral-500" />
+              <CreditCard className="h-4 w-4 text-black-600" />
             </CardHeader>
             <CardContent>
               <div className="text-2xl font-bold text-neutral-900 dark:text-neutral-100">{stats?.totalTransactions || transactions.length}</div>
@@ -259,13 +261,24 @@ export default function Transactions() {
                   AI Spending Recommendations
                 </CardTitle>
                 {!isRecommendationsLoading && (
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => setShowRecommendations(!showRecommendations)}
-                  >
-                    {showRecommendations ? 'Hide' : 'Show'}
-                  </Button>
+                  <div className="flex items-center gap-2">
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => fetchRecommendations(true)}
+                      title="Refresh recommendations (bypasses 30-minute cache)"
+                    >
+                      <RefreshCw className="h-4 w-4 mr-1" />
+                      Refresh
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => setShowRecommendations(!showRecommendations)}
+                    >
+                      {showRecommendations ? 'Hide' : 'Show'}
+                    </Button>
+                  </div>
                 )}
               </div>
               <CardDescription>
@@ -333,7 +346,7 @@ export default function Transactions() {
                 <select 
                   value={selectedFilter} 
                   onChange={(e) => setSelectedFilter(e.target.value)}
-                  className="px-3 py-2 border border-neutral-200 dark:border-neutral-700 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:bg-neutral-800"
+                  className="px-3 py-2 border border-neutral-200 dark:border-neutral-700 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:bg-neutral-800 text-black-600"
                 >
                   <option value="all">All Transactions</option>
                   <option value="credit">Credits Only</option>
@@ -469,26 +482,42 @@ export default function Transactions() {
                                 <div className={`mt-3 p-3 rounded-lg border ${
                                   isFlagged 
                                     ? 'bg-red-50 dark:bg-red-950/20 border-red-200 dark:border-red-900/50' 
-                                    : 'bg-blue-50 dark:bg-blue-950/20 border-blue-200 dark:border-blue-900/50'
+                                    : aiAnalysis.spendingWisdom === 'unwise'
+                                      ? 'bg-orange-50 dark:bg-orange-950/20 border-orange-200 dark:border-orange-900/50'
+                                      : aiAnalysis.spendingWisdom === 'wise'
+                                        ? 'bg-green-50 dark:bg-green-950/20 border-green-200 dark:border-green-900/50'
+                                        : 'bg-blue-50 dark:bg-blue-950/20 border-blue-200 dark:border-blue-900/50'
                                 }`}>
                                   <div className="flex items-start gap-2">
                                     <div className={`w-6 h-6 rounded-full flex items-center justify-center flex-shrink-0 mt-0.5 ${
                                       isFlagged 
                                         ? 'bg-red-100 dark:bg-red-900/50' 
-                                        : 'bg-blue-100 dark:bg-blue-900/50'
+                                        : aiAnalysis.spendingWisdom === 'unwise'
+                                          ? 'bg-orange-100 dark:bg-orange-900/50'
+                                          : aiAnalysis.spendingWisdom === 'wise'
+                                            ? 'bg-green-100 dark:bg-green-900/50'
+                                            : 'bg-blue-100 dark:bg-blue-900/50'
                                     }`}>
                                       <Brain className={`h-3.5 w-3.5 ${
                                         isFlagged 
                                           ? 'text-red-600 dark:text-red-400' 
-                                          : 'text-blue-600 dark:text-blue-400'
+                                          : aiAnalysis.spendingWisdom === 'unwise'
+                                            ? 'text-orange-600 dark:text-orange-400'
+                                            : aiAnalysis.spendingWisdom === 'wise'
+                                              ? 'text-green-600 dark:text-green-400'
+                                              : 'text-blue-600 dark:text-blue-400'
                                       }`} />
                                     </div>
                                     <div className="flex-1 min-w-0">
-                                      <div className="flex items-center gap-2 mb-1">
+                                      <div className="flex items-center gap-2 mb-1 flex-wrap">
                                         <span className={`text-xs font-semibold ${
                                           isFlagged 
                                             ? 'text-red-700 dark:text-red-300' 
-                                            : 'text-blue-700 dark:text-blue-300'
+                                            : aiAnalysis.spendingWisdom === 'unwise'
+                                              ? 'text-orange-700 dark:text-orange-300'
+                                              : aiAnalysis.spendingWisdom === 'wise'
+                                                ? 'text-green-700 dark:text-green-300'
+                                                : 'text-blue-700 dark:text-blue-300'
                                         }`}>
                                           AI Analysis
                                         </span>
@@ -500,11 +529,49 @@ export default function Transactions() {
                                             {fraudScore}% Risk
                                           </Badge>
                                         )}
+                                        {aiAnalysis.spendingWisdom && (
+                                          <Badge 
+                                            variant={
+                                              aiAnalysis.spendingWisdom === 'unwise' 
+                                                ? 'destructive' 
+                                                : aiAnalysis.spendingWisdom === 'wise' 
+                                                  ? 'default' 
+                                                  : 'secondary'
+                                            }
+                                            className="text-xs"
+                                          >
+                                            {aiAnalysis.spendingWisdom === 'unwise' 
+                                              ? '⚠️ Unwise Spending' 
+                                              : aiAnalysis.spendingWisdom === 'wise' 
+                                                ? '✓ Wise Purchase' 
+                                                : 'Neutral'}
+                                          </Badge>
+                                        )}
+                                        {aiAnalysis.wisdomScore !== undefined && (
+                                          <Badge variant="outline" className="text-xs">
+                                            Wisdom: {Math.round(aiAnalysis.wisdomScore * 100)}%
+                                          </Badge>
+                                        )}
                                       </div>
+                                      {aiAnalysis.wisdomReason && (
+                                        <div className={`mb-2 p-2 rounded text-xs font-medium ${
+                                          aiAnalysis.spendingWisdom === 'unwise'
+                                            ? 'bg-orange-100 dark:bg-orange-900/30 text-orange-800 dark:text-orange-200'
+                                            : aiAnalysis.spendingWisdom === 'wise'
+                                              ? 'bg-green-100 dark:bg-green-900/30 text-green-800 dark:text-green-200'
+                                              : 'bg-neutral-100 dark:bg-neutral-800/30 text-neutral-700 dark:text-neutral-300'
+                                        }`}>
+                                          💡 {aiAnalysis.wisdomReason}
+                                        </div>
+                                      )}
                                       <p className={`text-sm leading-relaxed ${
                                         isFlagged 
                                           ? 'text-red-800 dark:text-red-200' 
-                                          : 'text-blue-800 dark:text-blue-200'
+                                          : aiAnalysis.spendingWisdom === 'unwise'
+                                            ? 'text-orange-800 dark:text-orange-200'
+                                            : aiAnalysis.spendingWisdom === 'wise'
+                                              ? 'text-green-800 dark:text-green-200'
+                                              : 'text-blue-800 dark:text-blue-200'
                                       }`}>
                                         {aiAnalysis.explanation}
                                       </p>

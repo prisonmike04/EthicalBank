@@ -1,7 +1,7 @@
 """
 Data Access Control Service - Manage user permissions for AI data access
 """
-from fastapi import APIRouter, HTTPException, Depends, Header
+from fastapi import APIRouter, HTTPException, Depends, Header, Query
 from pydantic import BaseModel, Field
 from typing import Optional, List, Dict, Any
 from datetime import datetime
@@ -193,6 +193,14 @@ def update_data_access_permissions(
         upsert=True
     )
     
+    # Invalidate privacy score cache (permissions changed)
+    try:
+        cache_key = f"privacy_score_{user_id}"
+        db.privacy_score_cache.delete_one({"_id": cache_key})
+        logger.info(f"Invalidated privacy score cache for user {user_id}")
+    except Exception as e:
+        logger.warning(f"Failed to invalidate privacy score cache: {e}")
+    
     # Create consent record for audit
     consent_record = {
         "userId": user_id,
@@ -255,43 +263,84 @@ def get_consent_history(
 @router.get("/privacy-score")
 def get_privacy_score(
     x_clerk_user_id: str = Header(..., alias="x-clerk-user-id"),
+    refresh: bool = Query(False, description="Force refresh and bypass cache"),
     db = Depends(get_database)
 ):
-    """Calculate privacy score based on permissions"""
+    """Calculate privacy score based on permissions (cached for 30 minutes)"""
     user = get_user_from_clerk_id(x_clerk_user_id, db)
     user_id = user["_id"]
     
+    # Check cache first (unless refresh is requested)
+    if not refresh:
+        cache_key = f"privacy_score_{user_id}"
+        cached_data = db.privacy_score_cache.find_one({"_id": cache_key})
+        
+        if cached_data:
+            cache_age = (datetime.now() - cached_data.get("created_at", datetime.now())).total_seconds()
+            # Cache for 30 minutes (1800 seconds)
+            if cache_age < 1800:
+                logger.info(f"Returning cached privacy score (age: {cache_age:.1f}s)")
+                return {
+                    **cached_data.get("data", {}),
+                    "cached": True,
+                    "cacheAge": round(cache_age, 1)
+                }
+    
+    # Calculate privacy score
     permissions_doc = db.data_access_permissions.find_one({"userId": user_id})
     
     if not permissions_doc:
-        return {
+        result = {
             "score": 100,
             "maxScore": 100,
             "message": "Default permissions (all allowed)"
         }
+    else:
+        permissions = permissions_doc.get("permissions", {})
+        total_attributes = len(permissions)
+        
+        if total_attributes == 0:
+            result = {
+                "score": 100,
+                "maxScore": 100,
+                "message": "No permissions configured"
+            }
+        else:
+            # Privacy score: higher = more restrictive (better privacy)
+            # Score based on percentage of attributes that are NOT allowed
+            denied_count = sum(1 for allowed in permissions.values() if not allowed)
+            privacy_score = int((denied_count / total_attributes) * 100)
+            
+            result = {
+                "score": privacy_score,
+                "maxScore": 100,
+                "allowedAttributes": sum(1 for allowed in permissions.values() if allowed),
+                "deniedAttributes": denied_count,
+                "totalAttributes": total_attributes,
+                "message": f"{denied_count} of {total_attributes} attributes restricted"
+            }
     
-    permissions = permissions_doc.get("permissions", {})
-    total_attributes = len(permissions)
-    
-    if total_attributes == 0:
-        return {
-            "score": 100,
-            "maxScore": 100,
-            "message": "No permissions configured"
+    # Cache the result for 30 minutes
+    try:
+        cache_key = f"privacy_score_{user_id}"
+        cache_data = {
+            "_id": cache_key,
+            "data": result,
+            "created_at": datetime.now(),
+            "userId": user_id
         }
-    
-    # Privacy score: higher = more restrictive (better privacy)
-    # Score based on percentage of attributes that are NOT allowed
-    denied_count = sum(1 for allowed in permissions.values() if not allowed)
-    privacy_score = int((denied_count / total_attributes) * 100)
+        db.privacy_score_cache.replace_one(
+            {"_id": cache_key},
+            cache_data,
+            upsert=True
+        )
+        logger.info(f"Cached privacy score for user {user_id}")
+    except Exception as e:
+        logger.warning(f"Failed to cache privacy score: {e}")
     
     return {
-        "score": privacy_score,
-        "maxScore": 100,
-        "allowedAttributes": sum(1 for allowed in permissions.values() if allowed),
-        "deniedAttributes": denied_count,
-        "totalAttributes": total_attributes,
-        "message": f"{denied_count} of {total_attributes} attributes restricted"
+        **result,
+        "cached": False
     }
 
 def check_attribute_permission(user_id: ObjectId, attribute_id: str, db) -> bool:

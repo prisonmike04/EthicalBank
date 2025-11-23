@@ -11,7 +11,7 @@ import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
 import { useUser } from '@clerk/nextjs'
 import { backendAPI } from '@/lib/backend-api'
-import { Loader2, AlertTriangle, Brain, Scale, History } from 'lucide-react'
+import { Loader2, AlertTriangle, Brain, Scale, History, RefreshCw, Clock } from 'lucide-react'
 
 interface PerceptionAttribute {
   category: string
@@ -31,30 +31,46 @@ interface PerceptionData {
 export default function AIPerceptionPage() {
   const { user } = useUser()
   const [loading, setLoading] = useState(true)
+  const [refreshing, setRefreshing] = useState(false)
   const [data, setData] = useState<PerceptionData | null>(null)
   const [selectedAttribute, setSelectedAttribute] = useState<PerceptionAttribute | null>(null)
   const [disputeReason, setDisputeReason] = useState('')
   const [correction, setCorrection] = useState('')
   const [submitting, setSubmitting] = useState(false)
+  const [error, setError] = useState<string | null>(null)
 
-  const fetchPerception = useCallback(async () => {
+  const fetchPerception = useCallback(async (forceRefresh: boolean = false) => {
     if (!user?.id) return
+    
     try {
-      setLoading(true)
-      const res = await backendAPI.getAIPerception(user.id) as PerceptionData
+      if (forceRefresh) {
+        setRefreshing(true)
+      } else {
+        setLoading(true)
+      }
+      setError(null)
+      
+      // Use the backend API client with proper timeout and refresh parameter
+      const endpoint = forceRefresh ? '/api/ai-perception?refresh=true' : '/api/ai-perception'
+      const res = await backendAPI.request<PerceptionData>(endpoint, {
+        clerkUserId: user.id,
+        timeout: 120000 // 120 seconds timeout for complex AI analysis
+      })
       setData(res)
-    } catch (err) {
+    } catch (err: any) {
       console.error('Failed to fetch perception:', err)
+      setError(err.message || 'Failed to load AI perception. This may take a while - please try refreshing.')
     } finally {
       setLoading(false)
+      setRefreshing(false)
     }
   }, [user?.id])
 
   useEffect(() => {
     if (user?.id) {
-      fetchPerception()
+      fetchPerception(false) // Don't force refresh on initial load - use cache
     }
-  }, [user?.id, fetchPerception])
+  }, [user?.id]) // Removed fetchPerception from deps to prevent re-fetching
 
   const handleDispute = async () => {
     if (!selectedAttribute || !user?.id) return
@@ -68,8 +84,8 @@ export default function AIPerceptionPage() {
         correction: correction || undefined
       })
       
-      // Refresh data to show "disputed" status
-      await fetchPerception()
+      // Refresh data to show "disputed" status (don't force refresh - use cache if available)
+      await fetchPerception(false)
       setSelectedAttribute(null)
       setDisputeReason('')
       setCorrection('')
@@ -83,8 +99,27 @@ export default function AIPerceptionPage() {
   if (loading) {
     return (
       <AppLayout>
-        <div className="flex h-[50vh] items-center justify-center">
-          <Loader2 className="h-8 w-8 animate-spin text-blue-600" />
+        <div className="flex flex-col h-[60vh] items-center justify-center space-y-6">
+          <div className="relative">
+            <Loader2 className="h-12 w-12 animate-spin text-purple-600" />
+            <div className="absolute inset-0 flex items-center justify-center">
+              <Brain className="h-6 w-6 text-purple-400 animate-pulse" />
+            </div>
+          </div>
+          <div className="text-center space-y-2">
+            <h2 className="text-xl font-semibold text-neutral-900 dark:text-neutral-100">
+              Analyzing Your Financial Profile
+            </h2>
+            <p className="text-sm text-neutral-600 dark:text-neutral-400 max-w-md">
+              Our AI is analyzing your transactions, spending patterns, and financial behavior. 
+              This may take 30-90 seconds...
+            </p>
+            <div className="flex items-center justify-center gap-2 mt-4">
+              <div className="h-2 w-2 bg-purple-600 rounded-full animate-bounce" style={{ animationDelay: '0ms' }} />
+              <div className="h-2 w-2 bg-purple-600 rounded-full animate-bounce" style={{ animationDelay: '150ms' }} />
+              <div className="h-2 w-2 bg-purple-600 rounded-full animate-bounce" style={{ animationDelay: '300ms' }} />
+            </div>
+          </div>
         </div>
       </AppLayout>
     )
@@ -93,16 +128,48 @@ export default function AIPerceptionPage() {
   return (
     <AppLayout>
       <div className="space-y-6">
-        <div className="flex flex-col gap-2">
-          <h1 className="text-3xl font-bold text-neutral-900 dark:text-neutral-100 flex items-center gap-2">
-            <Brain className="h-8 w-8 text-purple-600" />
-            My AI Perception
-          </h1>
-          <p className="text-neutral-600 dark:text-neutral-400">
-            See exactly how our AI categorizes you, and dispute anything that feels wrong.
-            Transparency is your right.
-          </p>
+        <div className="flex items-center justify-between">
+          <div className="flex flex-col gap-2">
+            <h1 className="text-3xl font-bold text-neutral-900 dark:text-neutral-100 flex items-center gap-2">
+              <Brain className="h-8 w-8 text-purple-600" />
+              My AI Perception
+            </h1>
+            <p className="text-neutral-600 dark:text-neutral-400">
+              See exactly how our AI categorizes you, and dispute anything that feels wrong.
+              Transparency is your right.
+            </p>
+          </div>
+          <Button
+            variant="outline"
+            onClick={() => fetchPerception(true)}
+            disabled={refreshing || loading}
+            className="flex items-center gap-2"
+            title="Force refresh AI perception (bypasses 24-hour cache)"
+          >
+            {refreshing ? (
+              <>
+                <Loader2 className="h-4 w-4 animate-spin" />
+                Analyzing...
+              </>
+            ) : (
+              <>
+                <RefreshCw className="h-4 w-4" />
+                Refresh Analysis
+              </>
+            )}
+          </Button>
         </div>
+
+        {error && (
+          <Card className="border-red-200 dark:border-red-800 bg-red-50 dark:bg-red-950/20">
+            <CardContent className="pt-6">
+              <div className="flex items-center gap-2 text-red-600 dark:text-red-400">
+                <AlertTriangle className="h-5 w-5" />
+                <p>{error}</p>
+              </div>
+            </CardContent>
+          </Card>
+        )}
 
         {/* AI Summary Card */}
         <Card className="bg-gradient-to-br from-purple-50 to-white dark:from-purple-950/30 dark:to-neutral-900 border-purple-100 dark:border-purple-900">
@@ -113,9 +180,15 @@ export default function AIPerceptionPage() {
             <p className="text-lg leading-relaxed text-neutral-800 dark:text-neutral-200">
               &ldquo;{data?.summary}&rdquo;
             </p>
-            <div className="mt-4 flex items-center gap-2 text-xs text-neutral-500">
-              <History className="h-3 w-3" />
-              Last analyzed: {data?.lastAnalysis ? new Date(data.lastAnalysis).toLocaleString() : 'Just now'}
+            <div className="mt-4 flex items-center justify-between">
+              <div className="flex items-center gap-2 text-xs text-neutral-500">
+                <History className="h-3 w-3" />
+                Last analyzed: {data?.lastAnalysis ? new Date(data.lastAnalysis).toLocaleString() : 'Just now'}
+              </div>
+              <Badge variant="outline" className="text-xs flex items-center gap-1">
+                <Clock className="h-3 w-3" />
+                Cached for 24h
+              </Badge>
             </div>
           </CardContent>
         </Card>
