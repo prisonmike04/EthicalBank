@@ -4,7 +4,12 @@
 
 import { API_CONFIG } from './config'
 
-const BACKEND_URL = process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:8000'
+// Normalize backend URL - remove trailing slash to prevent double slashes
+const normalizeUrl = (url: string): string => {
+  return url.replace(/\/+$/, '') // Remove trailing slashes
+}
+
+const BACKEND_URL = normalizeUrl(process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:8000')
 
 export interface BackendResponse<T> {
   response?: T
@@ -33,7 +38,8 @@ class BackendAPIClient {
   private pendingRequests: Map<string, Promise<any>> = new Map()
 
   constructor(baseURL: string = BACKEND_URL) {
-    this.baseURL = baseURL
+    // Normalize baseURL to remove trailing slashes
+    this.baseURL = normalizeUrl(baseURL)
     // Log the backend URL in development
     if (typeof window !== 'undefined' && process.env.NODE_ENV === 'development') {
       console.log('🔗 Backend API URL:', this.baseURL)
@@ -129,7 +135,9 @@ class BackendAPIClient {
     // Create the request promise
     const requestPromise = (async () => {
       try {
-        const url = `${this.baseURL}${endpoint}`
+        // Ensure endpoint starts with / and baseURL doesn't end with /
+        const normalizedEndpoint = endpoint.startsWith('/') ? endpoint : `/${endpoint}`
+        const url = `${this.baseURL}${normalizedEndpoint}`
         if (typeof window !== 'undefined' && process.env.NODE_ENV === 'development') {
           console.log(`🌐 ${method} ${url}`, { body: body ? JSON.stringify(body).substring(0, 200) : null, headers })
         }

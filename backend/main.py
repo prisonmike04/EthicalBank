@@ -20,10 +20,32 @@ app = FastAPI(
     version="1.0.0"
 )
 
-# CORS middleware - Allow all origins
+# CORS middleware - Configure allowed origins
+# When allow_credentials=True, we cannot use "*" - must specify exact origins
+# Default origins for development
+default_origins = [
+    "http://localhost:3000",
+    "http://localhost:3001",
+    "http://127.0.0.1:3000",
+    "http://127.0.0.1:3001",
+    "https://ethical-bank-ghci-dods.vercel.app"
+]
+
+# Get additional origins from environment variable (comma-separated)
+env_origins = os.getenv("ALLOWED_ORIGINS", "").split(",")
+env_origins = [origin.strip() for origin in env_origins if origin.strip()]
+
+# Combine default and environment origins
+allowed_origins = default_origins + env_origins
+# Remove duplicates while preserving order
+seen = set()
+allowed_origins = [x for x in allowed_origins if not (x in seen or seen.add(x))]
+
+logger.info(f"CORS allowed origins: {allowed_origins}")
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  # Allow all origins
+    allow_origins=allowed_origins,  # Specific origins (required when credentials=True)
     allow_credentials=True,
     allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH"],  # Allow all methods
     allow_headers=["*"],  # Allow all headers
